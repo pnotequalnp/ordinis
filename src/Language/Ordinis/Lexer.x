@@ -44,7 +44,7 @@ $whitespace = $white # $nl
 :-
   "--" .*               ;
   $whitespace+          ;
-  $nl                   { lexeme . const TNewLine }
+  $nl+                  { lexeme . const TNewLine }
   \(                    { lexeme . const TParenOpen }
   \)                    { lexeme . const TParenClose }
   \{                    { lexeme . const TBraceOpen }
