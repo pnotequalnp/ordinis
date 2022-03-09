@@ -2,6 +2,7 @@ module Main where
 
 import Data.ByteString.Lazy qualified as LBS
 import Data.Foldable (asum, traverse_)
+import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as L
 import Data.Text.Lazy.IO qualified as L
 import Effectful
@@ -78,20 +79,36 @@ lexError fp LexError {line, column} = Errata.errataSimple (Just "Failed to lex s
         Nothing
 
 parseError :: FilePath -> ParseError -> Errata
-parseError fp (UnexpectedToken t) = Errata.errataSimple (Just "Failed to parse source") block Nothing
-  where
-    block =
-      Errata.blockSimple
-        Errata.Styles.fancyStyle
-        Errata.Styles.fancyRedPointer
+parseError fp (UnexpectedToken t) =
+  Errata.errataSimple
+    (Just "Failed to parse source")
+    ( singleLineError
         fp
-        Nothing
-        ( fromIntegral t.loc.endLine,
-          fromIntegral t.loc.startCol,
-          fromIntegral t.loc.endCol,
-          Just ("Unexpected token `" <> Ordinis.renderToken t.val <> "`")
-        )
-        Nothing
+        t.loc.endLine
+        t.loc.startCol
+        t.loc.endCol
+        ("Unexpected token `" <> Ordinis.renderToken t.val <> "`")
+    )
+    Nothing
+parseError fp (DuplicateLabel l) =
+  Errata.errataSimple
+    (Just "Failed to parse source")
+    (singleLineError fp l.loc.endLine l.loc.startCol l.loc.endCol ("Duplicate label `" <> l.val <> "`"))
+    Nothing
+
+singleLineError :: FilePath -> Word -> Word -> Word -> Text -> Errata.Block
+singleLineError fp line startCol endCol msg =
+  Errata.blockSimple
+    Errata.Styles.fancyStyle
+    Errata.Styles.fancyRedPointer
+    fp
+    Nothing
+    ( fromIntegral line,
+      fromIntegral startCol,
+      fromIntegral endCol,
+      Just msg
+    )
+    Nothing
 
 parser :: ParserInfo Options
 parser = Opts.info (Opts.helper <*> parseOptions) Opts.fullDesc

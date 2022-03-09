@@ -67,6 +67,7 @@ data Literal (f :: HS.Type -> HS.Type)
   | LFractional Rational
   | LSequence [f (Expression f)]
   | LRecord (Map (f Name) (f (Expression f)))
+  | LVariant (f Name) (f (Expression f))
 
 deriving stock instance (Show (f Name), Show (f (Expression f))) => Show (Literal f)
 
@@ -82,7 +83,11 @@ deriving stock instance (Show (f Name), Show (f (Expression f))) => Show (Expres
 data Type (f :: HS.Type -> HS.Type)
   = TVar Name
   | TCon Name
+  | TApp (f (Type f)) (f (Type f))
   | TFun (f (Type f)) (f (Type f))
+  | TRow (Map (f Name) (f (Type f)))
+  | TRecord (Map (f Name) (f (Type f)))
+  | TVariant (Map (f Name) (f (Type f)))
 
 deriving stock instance (Show (f Name), Show (f (Type f))) => Show (Type f)
 
@@ -100,7 +105,7 @@ data Loc = Loc
     startCol :: {-# UNPACK #-} !Word,
     endCol :: {-# UNPACK #-} !Word
   }
-  deriving stock (Show)
+  deriving stock (Show, Eq, Ord)
 
 instance Semigroup Loc where
   Loc {startCol, startLine} <> Loc {endCol, endLine} = Loc {startCol, endCol, startLine, endLine}
@@ -111,7 +116,16 @@ data Located a = Located
   }
   deriving stock (Functor, Show)
 
+instance Eq a => Eq (Located a) where
+  x == y = x.val == y.val
+
+instance Ord a => Ord (Located a) where
+  compare x y = compare x.val y.val
+
 {-# ANN mergeLocations ("HLint: ignore Redundant lambda" :: String) #-}
 {-# INLINE mergeLocations #-}
 mergeLocations :: (Located a -> Located b -> c) -> Located a -> Located b -> Located c
 mergeLocations f = \x y -> Located (x.loc <> y.loc) (f x y)
+
+locationAp :: (Located a -> Located b -> c) -> Located a -> Located b -> Located c
+locationAp f x y = Located (x.loc <> y.loc) (f x y)

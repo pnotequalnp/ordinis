@@ -1,3 +1,6 @@
+x : Record ( foo : Foo, bar : Bar )
+x = y
+
 john : { name : String, age : Int64 }
 john = { name = "John", age = x }
 
