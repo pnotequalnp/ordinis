@@ -10,7 +10,7 @@ copyright:     Kevin Mullins 2022
 
 common base
   default-language:   Haskell2010
-  ghc-options:        -Wall -Werror=incomplete-patterns
+  ghc-options:        -Wall -Werror=incomplete-patterns -fno-show-valid-hole-fits
   default-extensions:
     BlockArguments
     DataKinds

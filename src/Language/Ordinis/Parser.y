@@ -38,29 +38,34 @@ import Language.Ordinis.Syntax
 
 %%
 
+File :: { Module Located }
+  : Module                      { reverse $1 }
+  | Module '\n'                 { reverse $1 }
+  | '\n' Module                 { reverse $2 }
+  | '\n' Module '\n'            { reverse $2 }
+
 Module :: { Module Located }
   : Decl                        { [$1] }
   | Module '\n' Decl            { $3 : $1 }
-  | Decl '\n'                   { [$1] }
 
 Decl :: { Located (Declaration Located) }
-  : id '=' Expr                 { undefined }
-  | id ':' Type                 { undefined }
+  : id '=' Expr                 { mergeLocations Binding ((.id) `fmap` $1) $3 }
+  | id ':' Type                 { mergeLocations TypeSig ((.id) `fmap` $1) $3 }
 
 Type :: { Located (Type Located) }
-  : id                          { undefined }
+  : id                          { (TVar . (.id)) `fmap` $1 }
 
 Expr :: { Located (Expression Located) }
   : Atom                        { $1 }
 
 Atom :: { Located (Expression Located) }
   : '(' Expr ')'                { $2 }
-  | id                          { undefined }
-  | Literal                     { undefined }
+  | id                          { (EVar . (.id)) `fmap` $1 }
+  | Literal                     { error "lit" }
 
 Literal :: { Located (Literal Located) }
-  : int                         { undefined }
-  | float                       { undefined }
+  : int                         { error "int" }
+  | float                       { error "float" }
 
 {
 {-# ANN module "HLint: ignore" #-}

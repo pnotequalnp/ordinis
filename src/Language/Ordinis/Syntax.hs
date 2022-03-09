@@ -26,11 +26,11 @@ data Token
   | TForall
   | TComma
   | TDot
-  | TIdentifier {getIdentifier :: {-# UNPACK #-} !Text}
-  | TOperator {getOperator :: {-# UNPACK #-} !Text}
-  | TIntegral {getIntegral :: !Integer}
-  | TFractional {getFractional :: {-# UNPACK #-} !Rational}
-  | TString {getString :: {-# UNPACK #-} !Text}
+  | TIdentifier {id :: {-# UNPACK #-} !Text}
+  | TOperator {op :: {-# UNPACK #-} !Text}
+  | TIntegral {int :: !Integer}
+  | TFractional {frac :: {-# UNPACK #-} !Rational}
+  | TString {string :: {-# UNPACK #-} !Text}
   deriving stock (Show)
 
 renderToken :: Token -> Text
@@ -88,7 +88,7 @@ deriving stock instance (Show (f Name), Show (f (Type f))) => Show (Type f)
 
 data Declaration (f :: HS.Type -> HS.Type)
   = Binding (f Name) (f (Expression f))
-  | Type (f Name) (f (Type f))
+  | TypeSig (f Name) (f (Type f))
 
 deriving stock instance (Show (f Name), Show (f (Expression f)), Show (f (Type f))) => Show (Declaration f)
 
@@ -111,19 +111,7 @@ data Located a = Located
   }
   deriving stock (Functor, Show)
 
--- {-# ANN liftSpan2 ("HLint: ignore Redundant lambda" :: String) #-}
--- {-# INLINE liftSpan2 #-}
--- liftSpan2 :: (a -> b -> c) -> Span a -> Span b -> Span c
--- liftSpan2 f = \Span {startCol, startLine, value = x} Span {endLine, endCol, value = y} ->
---   Span {startCol, startLine, endCol, endLine, value = f x y}
-
--- {-# ANN mergeSpans ("HLint: ignore Redundant lambda" :: String) #-}
--- {-# INLINE mergeSpans #-}
--- mergeSpans :: (Span a -> Span b -> c) -> Span a -> Span b -> Span c
--- mergeSpans f = \s1@Span {startCol, startLine} s2@Span {endLine, endCol} ->
---   Span {startCol, startLine, endCol, endLine, value = f s1 s2}
-
--- {-# ANN onSpans ("HLint: ignore Redundant lambda" :: String) #-}
--- {-# INLINE onSpans #-}
--- onSpans :: (a -> b -> c) -> Span a -> Span b -> c
--- onSpans f = \Span {value = x} Span {value = y} -> f x y
+{-# ANN mergeLocations ("HLint: ignore Redundant lambda" :: String) #-}
+{-# INLINE mergeLocations #-}
+mergeLocations :: (Located a -> Located b -> c) -> Located a -> Located b -> Located c
+mergeLocations f = \x y -> Located (x.loc <> y.loc) (f x y)
