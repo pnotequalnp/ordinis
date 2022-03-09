@@ -13,62 +13,62 @@ import Language.Ordinis.Syntax
 }
 
 %name parse
-%tokentype { Span Token }
+%tokentype { Located Token }
 %monad { '[Error ParseError, Error LexError, State LexState] :>> es } { Eff es }
-%lexer { lexCont } { Span _ _ _ _ TEOF }
+%lexer { lexCont } { Located _ TEOF }
 %error { (throwError . UnexpectedToken) }
 
 %token
-      id              { Span _ _ _ _ (TIdentifier _) }
-      let             { Span _ _ _ _ TLet }
-      in              { Span _ _ _ _ TIn }
-      int             { Span _ _ _ _ (TIntegral _) }
-      float           { Span _ _ _ _ (TFractional _) }
-      ':'             { Span _ _ _ _ TTypeAnnotation }
-      '='             { Span _ _ _ _ TEquals }
-      '\n'            { Span _ _ _ _ TNewLine }
-      '('             { Span _ _ _ _ TParenOpen }
-      ')'             { Span _ _ _ _ TParenClose }
-      '['             { Span _ _ _ _ TSquareBracketOpen }
-      ']'             { Span _ _ _ _ TSquareBracketClose }
-      '〈'             { Span _ _ _ _ TAngleBracketOpen }
-      '〉'             { Span _ _ _ _ TAngleBracketClose }
-      '{'             { Span _ _ _ _ TBraceOpen }
-      '}'             { Span _ _ _ _ TBraceClose }
+      id              { Located _ (TIdentifier _) }
+      let             { Located _ TLet }
+      in              { Located _ TIn }
+      int             { Located _ (TIntegral _) }
+      float           { Located _ (TFractional _) }
+      ':'             { Located _ TTypeAnnotation }
+      '='             { Located _ TEquals }
+      '\n'            { Located _ TNewLine }
+      '('             { Located _ TParenOpen }
+      ')'             { Located _ TParenClose }
+      '['             { Located _ TSquareBracketOpen }
+      ']'             { Located _ TSquareBracketClose }
+      '〈'             { Located _ TAngleBracketOpen }
+      '〉'             { Located _ TAngleBracketClose }
+      '{'             { Located _ TBraceOpen }
+      '}'             { Located _ TBraceClose }
 
 %%
 
-Module :: { Module Span }
+Module :: { Module Located }
   : Decl                        { [$1] }
   | Module '\n' Decl            { $3 : $1 }
   | Decl '\n'                   { [$1] }
 
-Decl :: { Spanned Declaration }
-  : id '=' Expr                 { mergeSpans Binding (getIdentifier `fmap` $1) $3 }
-  | id ':' Type                 { mergeSpans Type (getIdentifier `fmap` $1) $3 }
+Decl :: { Located (Declaration Located) }
+  : id '=' Expr                 { undefined }
+  | id ':' Type                 { undefined }
 
-Type :: { Spanned Type }
-  : id                          { (TVar . getIdentifier) `fmap` $1 }
+Type :: { Located (Type Located) }
+  : id                          { undefined }
 
-Expr :: { Spanned Expression }
+Expr :: { Located (Expression Located) }
   : Atom                        { $1 }
 
-Atom :: { Spanned Expression }
+Atom :: { Located (Expression Located) }
   : '(' Expr ')'                { $2 }
-  | id                          { (EVar . getIdentifier) `fmap` $1 }
-  | Literal                     { ELit `fmap` $1 }
+  | id                          { undefined }
+  | Literal                     { undefined }
 
-Literal :: { Spanned Literal }
-  : int                         { (LIntegral . getIntegral) `fmap` $1 }
-  | float                       { (LFractional . getFractional) `fmap` $1 }
+Literal :: { Located (Literal Located) }
+  : int                         { undefined }
+  | float                       { undefined }
 
 {
 {-# ANN module "HLint: ignore" #-}
 
 data ParseError
-  = UnexpectedToken (Span Token)
+  = UnexpectedToken (Located Token)
   deriving stock (Show)
 
-runParser :: '[Error ParseError, Error LexError] :>> es => L.Text -> Eff es (Module Span)
+runParser :: '[Error ParseError, Error LexError] :>> es => L.Text -> Eff es (Module Located)
 runParser source = evalState (initialLexState source) parse
 }

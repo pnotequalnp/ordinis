@@ -15,14 +15,16 @@ common base
     BlockArguments
     DataKinds
     DeriveFunctor
-    DerivingStrategies
+    DerivingVia
     DuplicateRecordFields
-    KindSignatures
     FlexibleContexts
     FlexibleInstances
     ImportQualifiedPost
     LambdaCase
     NamedFieldPuns
+    NoFieldSelectors
+    NoStarIsType
+    OverloadedRecordDot
     OverloadedStrings
     RankNTypes
     StandaloneDeriving
@@ -32,7 +34,7 @@ common base
     ViewPatterns
 
   build-depends:
-    , base ^>=4.14.1.0
+    , base ^>=4.16.0.0
     , bytestring
     , effectful
     , text

@@ -2,7 +2,6 @@ module Main where
 
 import Data.ByteString.Lazy qualified as LBS
 import Data.Foldable (asum, traverse_)
-import Data.Text qualified as T
 import Data.Text.Lazy.Encoding qualified as L
 import Data.Text.Lazy.IO qualified as L
 import Effectful
@@ -11,7 +10,7 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Errata (Errata)
 import Errata qualified
 import Errata.Styles qualified
-import Language.Ordinis (LexError (LexError), ParseError (..), Span (Span))
+import Language.Ordinis (LexError (LexError), Located (..), ParseError (..))
 import Language.Ordinis qualified as Ordinis
 import Options.Applicative (Parser, ParserInfo)
 import Options.Applicative qualified as Opts
@@ -79,7 +78,7 @@ lexError fp LexError {line, column} = Errata.errataSimple (Just "Failed to lex s
         Nothing
 
 parseError :: FilePath -> ParseError -> Errata
-parseError fp (UnexpectedToken Span {startCol, endCol, endLine, value}) = Errata.errataSimple (Just "Failed to parse source") block Nothing
+parseError fp (UnexpectedToken t) = Errata.errataSimple (Just "Failed to parse source") block Nothing
   where
     block =
       Errata.blockSimple
@@ -87,7 +86,11 @@ parseError fp (UnexpectedToken Span {startCol, endCol, endLine, value}) = Errata
         Errata.Styles.fancyRedPointer
         fp
         Nothing
-        (fromIntegral endLine, fromIntegral startCol, fromIntegral endCol, Just ("Unexpected token " <> T.pack (show value)))
+        ( fromIntegral t.loc.endLine,
+          fromIntegral t.loc.startCol,
+          fromIntegral t.loc.endCol,
+          Just ("Unexpected token `" <> Ordinis.renderToken t.val <> "`")
+        )
         Nothing
 
 parser :: ParserInfo Options

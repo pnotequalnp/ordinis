@@ -1,5 +1,6 @@
 {
   inputs = {
+    nixpkgs.url = "nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     effectful-src = {
       url = "github:haskell-effectful/effectful";
@@ -15,7 +16,7 @@
     flake-utils.lib.eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        hs = pkgs.haskellPackages;
+        hs = pkgs.haskell.packages.ghc921;
         effectful-core = hs.callCabal2nix "effectful-core" "${effectful-src}/effectful-core" { };
         effectful = hs.callCabal2nix "effectful" "${effectful-src}/effectful" { inherit effectful-core; };
         effectful-th = hs.callCabal2nix "effectful-th" "${effectful-src}/effectful-th" { inherit effectful; };

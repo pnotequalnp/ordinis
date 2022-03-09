@@ -30,7 +30,7 @@ import Data.Word (Word8)
 import Effectful
 import Effectful.Error.Static
 import Effectful.State.Static.Local
-import Language.Ordinis.Syntax (Token (..), Span (..))
+import Language.Ordinis.Syntax (Token (..), Located (..), Loc (..))
 
 }
 
@@ -66,14 +66,14 @@ $whitespace = $white # $nl
 {
 {-# ANN module "HLint: ignore" #-}
 
-lexeme :: State LexState :> es => Token -> Eff es (Span Token)
+lexeme :: State LexState :> es => Token -> Eff es (Located Token)
 lexeme t = do
   LexPosition {line = startLine, column = startCol} <- getStart
-  LexPosition {line = endLine, column = endCol} <- gets position
+  LexPosition {line = endLine, column = endCol} <- gets @LexState (.position)
   modify \s -> s {startPos = Nothing}
-  pure Span {startLine, startCol, endLine, endCol, value = t}
+  pure (Located Loc {startLine, startCol, endLine, endCol} t)
   where
-    getStart = get <&> \s -> case startPos s of
+    getStart = get @LexState <&> \s -> case s.startPos of
       Nothing -> error ("Lexer matched 0-width lexeme. This is a bug.\n" <> show s)
       Just x -> x
 
@@ -149,29 +149,29 @@ alexGetByte s@LexState {current = (c, []), remaining, prev, token, position, sta
         _ -> position { column = column + 1 }
   pure (x, s')
 
-lexList :: '[State LexState, Error LexError] :>> es => Eff es [Span Token]
+lexList :: '[State LexState, Error LexError] :>> es => Eff es [Located Token]
 lexList = lexCont \case
-  Span _ _ _ _ TEOF -> pure []
+  Located _ TEOF -> pure []
   t -> (t :) <$> lexList
 
-lexCont :: '[State LexState, Error LexError] :>> es => (Span Token -> Eff es a) -> Eff es a
+lexCont :: '[State LexState, Error LexError] :>> es => (Located Token -> Eff es a) -> Eff es a
 lexCont f = do
-  s@LexState {startCode} <- get
-  case alexScan s startCode of
-    AlexEOF -> f (Span 0 0 0 0 TEOF)
+  s <- get
+  case alexScan s s.startCode of
+    AlexEOF -> f (Located (Loc 0 0 0 0) TEOF)
     AlexError LexState {position = LexPosition {line, column}} -> throwError LexError {line, column}
     AlexSkip s' _len -> do
       put (resetToken s')
       lexCont f
     AlexToken s' _len action -> do
       put (resetToken s')
-      case token s' of
+      case s'.token of
         Nothing -> error "Lexer matched empty token. This is a bug."
         Just t -> action t >>= f
   where
     resetToken s = s {token = Nothing}
 
-runLexer :: Error LexError :> es => L.Text -> Eff es [Span Token]
+runLexer :: Error LexError :> es => L.Text -> Eff es [Located Token]
 runLexer source = evalState (initialLexState source) lexList
 
 initialLexState :: L.Text -> LexState
