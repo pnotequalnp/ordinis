@@ -24,8 +24,11 @@ data Token
   | TEquals
   | TTypeAnnotation
   | TForall
+  | TExists
   | TComma
   | TDot
+  | TArrow
+  | TType
   | TIdentifier {id :: {-# UNPACK #-} !Text}
   | TOperator {op :: {-# UNPACK #-} !Text}
   | TIntegral {int :: !Integer}
@@ -51,8 +54,11 @@ renderToken = \case
   TEquals -> "="
   TTypeAnnotation -> ":"
   TForall -> "∀"
+  TExists -> "∃"
   TComma -> ","
   TDot -> "."
+  TArrow -> "->"
+  TType -> "type"
   TIdentifier x -> x
   TOperator x -> x
   TIntegral x -> (T.pack . show) x
@@ -94,6 +100,7 @@ deriving stock instance (Show (f Name), Show (f (Type f))) => Show (Type f)
 data Declaration (f :: HS.Type -> HS.Type)
   = Binding (f Name) (f (Expression f))
   | TypeSig (f Name) (f (Type f))
+  | TypeSyn (f Name) (f (Type f))
 
 deriving stock instance (Show (f Name), Show (f (Expression f)), Show (f (Type f))) => Show (Declaration f)
 

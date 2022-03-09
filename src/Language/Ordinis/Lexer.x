@@ -35,11 +35,12 @@ import Language.Ordinis.Syntax (Token (..), Located (..), Loc (..))
 }
 
 $digit = 0-9
+$subdigit = [₀-₉]
 $alpha = [a-z A-Z α-ω Α-Ω]
 $nl = \n
 $whitespace = $white # $nl
 
-@identifier = $alpha [$alpha $digit \_ \']*
+@identifier = $alpha [$alpha $digit $subdigit \_ \']*
 
 :-
   "--" .*               ;
@@ -53,10 +54,14 @@ $whitespace = $white # $nl
   \〉                    { lexeme . const TAngleBracketClose }
   \.                    { lexeme . const TDot }
   \,                    { lexeme . const TComma }
+  "->"                  { lexeme . const TArrow }
   :                     { lexeme . const TTypeAnnotation }
   =                     { lexeme . const TEquals }
   let                   { lexeme . const TLet }
   in                    { lexeme . const TIn }
+  ∀                     { lexeme . const TForall }
+  ∃                     { lexeme . const TExists }
+  type                  { lexeme . const TType }
   $digit+               { lexeme . TIntegral . readIntegralUnsafe }
   \- $digit+            { lexeme . TIntegral . negate . readIntegralUnsafe . T.drop 1 }
   $digit+ \. $digit*    { lexeme . TFractional . readFractionalUnsafe }
