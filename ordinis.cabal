@@ -28,6 +28,7 @@ common base
     OverloadedStrings
     RankNTypes
     StandaloneDeriving
+    TupleSections
     TypeApplications
     TypeFamilies
     TypeOperators
@@ -62,6 +63,7 @@ executable ordinis
   import:           base
   hs-source-dirs:   app/ordinis
   main-is:          Main.hs
+  other-modules:    Paths_ordinis
   default-language: Haskell2010
   ghc-options:      -Wall
   build-depends:
