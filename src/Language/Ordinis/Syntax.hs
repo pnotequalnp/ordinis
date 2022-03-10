@@ -98,9 +98,9 @@ data Type (f :: HS.Type -> HS.Type)
 deriving stock instance (Show (f Name), Show (f (Type f))) => Show (Type f)
 
 data Declaration (f :: HS.Type -> HS.Type)
-  = Binding (f Name) (f (Expression f))
-  | TypeSig (f Name) (f (Type f))
-  | TypeSyn (f Name) (f (Type f))
+  = TypeSig (f Name) (f (Type f))
+  | Equation (f Name) [f Name] (f (Expression f))
+  | TypeSyn (f Name) [f Name] (f (Type f))
 
 deriving stock instance (Show (f Name), Show (f (Expression f)), Show (f (Type f))) => Show (Declaration f)
 

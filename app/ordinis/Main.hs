@@ -107,6 +107,16 @@ parseError fp (DuplicateLabel l) =
     (Just "Failed to parse source")
     (singleLineError fp l.loc.endLine l.loc.startCol l.loc.endCol ("Duplicate label `" <> l.val <> "`"))
     Nothing
+parseError fp (EmptyVariant loc) =
+  Errata.errataSimple
+    (Just "Failed to parse source")
+    (singleLineError fp loc.endLine loc.startCol loc.endCol "Empty variant")
+    Nothing
+parseError fp (MultipleVariant loc) =
+  Errata.errataSimple
+    (Just "Failed to parse source")
+    (singleLineError fp loc.endLine loc.startCol loc.endCol "Multiple definitions of variant")
+    Nothing
 
 singleLineError :: FilePath -> Word -> Word -> Word -> Text -> Errata.Block
 singleLineError fp line startCol endCol msg =
