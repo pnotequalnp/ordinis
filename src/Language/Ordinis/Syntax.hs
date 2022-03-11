@@ -18,6 +18,10 @@ data Token
   | TkAngleBracketClose
   | TkBraceOpen
   | TkBraceClose
+  | TkMapOpen
+  | TkMapClose
+  | TkListOpen
+  | TkListClose
   | TkLet
   | TkIn
   | TkWhere
@@ -48,6 +52,10 @@ renderToken = \case
   TkAngleBracketClose -> "〉"
   TkBraceOpen -> "{"
   TkBraceClose -> "}"
+  TkMapOpen -> "⦃"
+  TkMapClose -> "⦄"
+  TkListOpen -> "〚"
+  TkListClose -> "〛"
   TkLet -> "let"
   TkIn -> "in"
   TkWhere -> "where"
@@ -79,9 +87,11 @@ data Expression (f :: HS.Type -> HS.Type)
   | ELam (f Name) (f ()) (Expression f)
   | ELet (f ()) (f Name) (f ()) (Expression f) (f ()) (Expression f)
   | ELit (f Literal)
-  | Sequence (f ()) [Expression f] [f ()] (f ())
-  | Record (f ()) (Map (f Name) (f Name, f (), Expression f)) [f ()] (f ())
-  | Variant (f ()) (f Name) (f ()) (Expression f) (f ())
+  | EArray (f ()) [Expression f] [f ()] (f ())
+  | EList (f ()) [Expression f] [f ()] (f ())
+  | EMap (f ()) (Map (f Name) (f Name, f (), Expression f)) [f ()] (f ())
+  | ERecord (f ()) (Map (f Name) (f Name, f (), Expression f)) [f ()] (f ())
+  | EVariant (f ()) (f Name) (f ()) (Expression f) (f ())
 
 deriving stock instance (forall a. Show a => Show (f a)) => Show (Expression f)
 
@@ -90,6 +100,9 @@ data Type (f :: HS.Type -> HS.Type)
   | TCon (f Name)
   | TApp (Type f) (Type f)
   | TFun (Type f) (f ()) (Type f)
+  | TArray (f ()) (Type f) (f ())
+  | TList (f ()) (Type f) (f ())
+  | TMap (f ()) (Type f) (f ())
   | TRow (f ()) (Map (f Name) (f Name, f (), Type f)) [f ()] (f ())
   | TRecord (f ()) (Map (f Name) (f Name, f (), Type f)) [f ()] (f ())
   | TVariant (f ()) (Map (f Name) (f Name, f (), Type f)) [f ()] (f ())

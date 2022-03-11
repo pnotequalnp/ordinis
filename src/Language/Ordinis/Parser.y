@@ -34,6 +34,10 @@ import Language.Ordinis.Syntax
       '〉'             { Located $$ TkAngleBracketClose }
       '{'             { Located $$ TkBraceOpen }
       '}'             { Located $$ TkBraceClose }
+      '{|'            { Located $$ TkMapOpen }
+      '|}'            { Located $$ TkMapClose }
+      '[|'            { Located $$ TkListOpen }
+      '|]'            { Located $$ TkListClose }
       ','             { Located $$ TkComma }
       '.'             { Located $$ TkDot }
       '->'            { Located $$ TkArrow }
@@ -82,6 +86,9 @@ TFact :: { Type Located }
 
 TAtom :: { Type Located }
   : id                          { TVar (getId $1) }
+  | '[' Type ']'                { TArray (loc $1) $2 (loc $3) }
+  | '[|' Type '|]'              { TList (loc $1) $2 (loc $3) }
+  | '{|' Type '|}'              { TMap (loc $1) $2 (loc $3) }
   | '(' TAssoc ')'              { TRow (loc $1) (fst $2) (snd $2) (loc $3) }
   | '{' TAssoc '}'              { TRecord (loc $1) (fst $2) (snd $2) (loc $3) }
   | '〈' TAssoc '〉'              { TVariant (loc $1) (fst $2) (snd $2) (loc $3) }
@@ -107,10 +114,13 @@ Atom :: { Expression Located }
   : '(' Expr ')'                { $2 }
   | id                          { EVar (getId $1) }
   | Literal                     { ELit $1 }
-  | '{' Assoc '}'               { Record (loc $1) (fst $2) (snd $2) (loc $3) }
+  | '[' Exprs ']'               { EArray (loc $1) (fst $2) (snd $2) (loc $3) }
+  | '[|' Exprs '|]'             { EList (loc $1) (fst $2) (snd $2) (loc $3) }
+  | '{|' Assoc '|}'             { EMap (loc $1) (fst $2) (snd $2) (loc $3) }
+  | '{' Assoc '}'               { ERecord (loc $1) (fst $2) (snd $2) (loc $3) }
   | '〈' Assoc '〉'               {% case Map.toList (fst $2) of
                                      [] -> throwError (EmptyVariant ($1 <> $3))
-                                     [(_, (l, eq, x))] -> pure (Variant (loc $1) l eq x (loc $3))
+                                     [(_, (l, eq, x))] -> pure (EVariant (loc $1) l eq x (loc $3))
                                      _ -> throwError (MultipleVariant ($1 <> $3)) }
 
 Assoc :: { (Map (Located Name) (Located Name, Located (), Expression Located), [Located ()]) }
@@ -118,6 +128,11 @@ Assoc :: { (Map (Located Name) (Located Name, Located (), Expression Located), [
   | id '=' Expr                 { let l = getId $1 in (Map.singleton l (l, loc $2, $3), []) }
   | Assoc ',' id '=' Expr       {% let l = getId $3; (m, commas) = $1
                                     in fmap (, loc $2 : commas) (insertAssoc m l (l, loc $4, $5)) }
+
+Exprs :: { ([Expression Located], [Located ()]) }
+  : {- Empty -}                 { ([], []) }
+  | Expr                        { ([$1], []) }
+  | Exprs ',' Expr              { let (xs, commas) = $1 in ($3 : xs, loc $2 : commas) }
 
 Literal :: { Located Literal }
   : int                         { (LIntegral . (.int)) `fmap` $1 }

@@ -50,8 +50,16 @@ $whitespace = $white # $nl
   \)                    { lexeme . const TkParenClose }
   \{                    { lexeme . const TkBraceOpen }
   \}                    { lexeme . const TkBraceClose }
-  \〈                    { lexeme . const TkAngleBracketOpen }
-  \〉                    { lexeme . const TkAngleBracketClose }
+  〈                     { lexeme . const TkAngleBracketOpen }
+  〉                     { lexeme . const TkAngleBracketClose }
+  ⦃                     { lexeme . const TkMapOpen }
+  "{|"                  { lexeme . const TkMapOpen }
+  ⦄                     { lexeme . const TkMapClose }
+  "|}"                  { lexeme . const TkMapClose }
+  〚                    { lexeme . const TkListOpen }
+  "[|"                  { lexeme . const TkListOpen }
+  〛                    { lexeme . const TkListClose }
+  "|]"                  { lexeme . const TkListClose }
   \.                    { lexeme . const TkDot }
   \,                    { lexeme . const TkComma }
   "->"                  { lexeme . const TkArrow }
