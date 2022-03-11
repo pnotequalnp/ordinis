@@ -4,5 +4,5 @@ x = y
 john : { name : String, age : Int64 }
 john = { name = "John", age = x }
 
-color : 〈 red : Word8, blue : Word8 〉
+color : 〈 red : UInt8, blue : UInt8 〉
 color = 〈 blue = 255 〉

@@ -1,0 +1,4 @@
+foo : Int64
+foo = 5
+
+foo : Int64

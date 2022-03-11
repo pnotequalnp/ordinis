@@ -1,10 +1,10 @@
 module Main where
 
 import Control.Applicative (optional)
-import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Foldable (asum, traverse_)
 import Data.Text (Text)
+import Data.Text.Lazy qualified as L
 import Data.Text.Lazy.Encoding qualified as L
 import Data.Text.Lazy.IO qualified as L
 import Data.Version (showVersion)
@@ -14,12 +14,12 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Errata (Errata)
 import Errata qualified
 import Errata.Styles qualified
-import Language.Ordinis (LexError (LexError), Located (..), ParseError (..))
+import Language.Ordinis (LexError (LexError), Located (..), ParseError (..), TypeError (..))
 import Language.Ordinis qualified as Ordinis
 import Options.Applicative (Parser, ParserInfo)
 import Options.Applicative qualified as Opts
 import Paths_ordinis (version)
-import System.Exit (exitFailure)
+import System.Exit (exitFailure, exitSuccess)
 import System.IO (hPutStrLn, stderr)
 import Prelude hiding (lex)
 
@@ -47,36 +47,51 @@ main = runEff
     Options {mode, filePath} <- withArgs compilerArgs . liftIO $ Opts.execParser parser
 
     (fp, src) <- liftIO case filePath of
-      Nothing -> ("<STDIN>",) <$> LBS.getContents
-      Just f -> (f,) <$> LBS.readFile f
+      Nothing -> ("<STDIN>",) . L.decodeUtf8 <$> LBS.getContents
+      Just f -> (f,) . L.decodeUtf8 <$> LBS.readFile f
 
     case mode of
       Lex -> lex fp src
       Parse -> parse fp src
-      Typecheck -> error "Typechecker not implemented"
+      Version -> liftIO (hPutStrLn stderr (showVersion version))
       Type -> error "Typechecker not implemented"
       Evaluate -> error "Evaluator not implemented"
+      Typecheck -> typecheck fp src
       Interpret -> error "Interpreter not implemented"
       Compile -> error "Compiler not implemented"
-      Version -> liftIO (hPutStrLn stderr (showVersion version))
   where
     trimArgs = \case
       "--" : xs -> xs
       xs -> xs
 
-lex :: IOE :> e => FilePath -> ByteString -> Eff e ()
-lex fp (L.decodeUtf8 -> source) =
+lex :: IOE :> es => FilePath -> L.Text -> Eff es ()
+lex fp source =
   runErrorNoCallStack @LexError (Ordinis.runLexer source) >>= \case
     Left err -> liftIO $ (L.hPutStrLn stderr . Errata.prettyErrors source . pure . lexError fp) err *> exitFailure
     Right tokens -> liftIO (traverse_ print tokens)
 
-parse :: IOE :> e => FilePath -> ByteString -> Eff e ()
-parse fp (L.decodeUtf8 -> source) =
-  (runErrorNoCallStack @LexError . runErrorNoCallStack @ParseError) (Ordinis.runParser source)
-    >>= \case
-      Left lerr -> liftIO $ (L.hPutStrLn stderr . Errata.prettyErrors source . pure . lexError fp) lerr *> exitFailure
-      Right (Left perr) -> liftIO $ (L.hPutStrLn stderr . Errata.prettyErrors source . pure . parseError fp) perr *> exitFailure
-      Right (Right cst) -> liftIO (traverse_ print cst)
+parse :: IOE :> es => FilePath -> L.Text -> Eff es ()
+parse fp source =
+  (runErrorNoCallStack @LexError . runErrorNoCallStack @ParseError) (Ordinis.runParser source) >>= \case
+    Left lerr -> liftIO $ (L.hPutStrLn stderr . Errata.prettyErrors source . pure . lexError fp) lerr *> exitFailure
+    Right (Left perr) -> liftIO $ (L.hPutStrLn stderr . Errata.prettyErrors source . pure . parseError fp) perr *> exitFailure
+    Right (Right cst) -> liftIO (traverse_ print cst)
+
+typecheck :: IOE :> es => FilePath -> L.Text -> Eff es ()
+typecheck fp source =
+  (runErrorNoCallStack @LexError . runErrorNoCallStack @ParseError) (Ordinis.runParser source) >>= \case
+    Left err -> liftIO do
+      (L.hPutStrLn stderr . Errata.prettyErrors source . pure . lexError fp) err
+      exitFailure
+    Right (Left err) -> liftIO do
+      (L.hPutStrLn stderr . Errata.prettyErrors source . pure . parseError fp) err
+      exitFailure
+    Right (Right cst) ->
+      runErrorNoCallStack @TypeError (Ordinis.runTypechecker cst) >>= \case
+        Left err -> liftIO do
+          (L.hPutStrLn stderr . Errata.prettyErrors source . pure . typeError fp) err
+          exitFailure
+        Right _ -> liftIO exitSuccess
 
 lexError :: FilePath -> LexError -> Errata
 lexError fp LexError {line, column} = Errata.errataSimple (Just "Failed to lex source") block Nothing
@@ -91,32 +106,70 @@ lexError fp LexError {line, column} = Errata.errataSimple (Just "Failed to lex s
         Nothing
 
 parseError :: FilePath -> ParseError -> Errata
-parseError fp (UnexpectedToken t) =
-  Errata.errataSimple
-    (Just "Failed to parse source")
-    ( singleLineError
-        fp
-        t.loc.endLine
-        t.loc.startCol
-        t.loc.endCol
-        ("Unexpected token `" <> Ordinis.renderToken t.val <> "`")
-    )
-    Nothing
-parseError fp (DuplicateLabel l) =
-  Errata.errataSimple
-    (Just "Failed to parse source")
-    (singleLineError fp l.loc.endLine l.loc.startCol l.loc.endCol ("Duplicate label `" <> l.val <> "`"))
-    Nothing
-parseError fp (EmptyVariant loc) =
-  Errata.errataSimple
-    (Just "Failed to parse source")
-    (singleLineError fp loc.endLine loc.startCol loc.endCol "Empty variant")
-    Nothing
-parseError fp (MultipleVariant loc) =
-  Errata.errataSimple
-    (Just "Failed to parse source")
-    (singleLineError fp loc.endLine loc.startCol loc.endCol "Multiple definitions of variant")
-    Nothing
+parseError fp = \case
+  UnexpectedToken t ->
+    Errata.errataSimple
+      (Just "Failed to parse source")
+      ( singleLineError
+          fp
+          t.loc.endLine
+          t.loc.startCol
+          t.loc.endCol
+          ("Unexpected token `" <> Ordinis.renderToken t.val <> "`")
+      )
+      Nothing
+  DuplicateLabel l ->
+    Errata.errataSimple
+      (Just "Failed to parse source")
+      (singleLineError fp l.loc.endLine l.loc.startCol l.loc.endCol ("Duplicate label `" <> l.val <> "`"))
+      Nothing
+  EmptyVariant loc ->
+    Errata.errataSimple
+      (Just "Failed to parse source")
+      (singleLineError fp loc.endLine loc.startCol loc.endCol "Empty variant")
+      Nothing
+  MultipleVariant loc ->
+    Errata.errataSimple
+      (Just "Failed to parse source")
+      (singleLineError fp loc.endLine loc.startCol loc.endCol "Multiple definitions of variant")
+      Nothing
+
+typeError :: FilePath -> TypeError -> Errata
+typeError fp = \case
+  UnificationError -> undefined
+  DuplicateTypeSynonym n ->
+    Errata.errataSimple
+      (Just "Type Error")
+      ( singleLineError
+          fp
+          n.loc.endLine
+          n.loc.startCol
+          n.loc.endCol
+          ("Duplicate definition of type synonym `" <> n.val <> "`")
+      )
+      Nothing
+  DuplicateTypeSignature n ->
+    Errata.errataSimple
+      (Just "Type Error")
+      ( singleLineError
+          fp
+          n.loc.endLine
+          n.loc.startCol
+          n.loc.endCol
+          ("Duplicate type signature for `" <> n.val <> "`")
+      )
+      Nothing
+  UnboundVariable v ->
+    Errata.errataSimple
+      (Just "Type Error")
+      ( singleLineError
+          fp
+          v.loc.endLine
+          v.loc.startCol
+          v.loc.endCol
+          ("Unbound variable `" <> v.val <> "`")
+      )
+      Nothing
 
 singleLineError :: FilePath -> Word -> Word -> Word -> Text -> Errata.Block
 singleLineError fp line startCol endCol msg =

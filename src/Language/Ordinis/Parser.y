@@ -86,9 +86,10 @@ TFact :: { Type Located }
 
 TAtom :: { Type Located }
   : id                          { TVar (getId $1) }
+  | '(' Type ')'                { $2 }
   | '[' Type ']'                { TArray (loc $1) $2 (loc $3) }
   | '[|' Type '|]'              { TList (loc $1) $2 (loc $3) }
-  | '{|' Type '|}'              { TMap (loc $1) $2 (loc $3) }
+  | '{|' Type ',' Type '|}'     { TMap (loc $1) $2 (loc $3) $4 (loc $5) }
   | '(' TAssoc ')'              { TRow (loc $1) (fst $2) (snd $2) (loc $3) }
   | '{' TAssoc '}'              { TRecord (loc $1) (fst $2) (snd $2) (loc $3) }
   | '〈' TAssoc '〉'              { TVariant (loc $1) (fst $2) (snd $2) (loc $3) }
@@ -111,9 +112,9 @@ Fact :: { Expression Located }
   | Atom                        { $1 }
 
 Atom :: { Expression Located }
-  : '(' Expr ')'                { $2 }
-  | id                          { EVar (getId $1) }
+  : id                          { EVar (getId $1) }
   | Literal                     { ELit $1 }
+  | '(' Expr ')'                { $2 }
   | '[' Exprs ']'               { EArray (loc $1) (fst $2) (snd $2) (loc $3) }
   | '[|' Exprs '|]'             { EList (loc $1) (fst $2) (snd $2) (loc $3) }
   | '{|' Assoc '|}'             { EMap (loc $1) (fst $2) (snd $2) (loc $3) }

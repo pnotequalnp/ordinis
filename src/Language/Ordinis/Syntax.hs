@@ -4,6 +4,7 @@ module Language.Ordinis.Syntax where
 
 import Data.Kind qualified as HS
 import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 
@@ -102,7 +103,7 @@ data Type (f :: HS.Type -> HS.Type)
   | TFun (Type f) (f ()) (Type f)
   | TArray (f ()) (Type f) (f ())
   | TList (f ()) (Type f) (f ())
-  | TMap (f ()) (Type f) (f ())
+  | TMap (f ()) (Type f) (f ()) (Type f) (f ())
   | TRow (f ()) (Map (f Name) (f Name, f (), Type f)) [f ()] (f ())
   | TRecord (f ()) (Map (f Name) (f Name, f (), Type f)) [f ()] (f ())
   | TVariant (f ()) (Map (f Name) (f Name, f (), Type f)) [f ()] (f ())
@@ -110,6 +111,12 @@ data Type (f :: HS.Type -> HS.Type)
   | TExists (f ()) [f Name] (f ()) (Type f)
 
 deriving stock instance (forall a. Show a => Show (f a)) => Show (Type f)
+
+-- NOTE: This has an `Ord` constraint even though it seems like it should only need `Eq`
+-- This is a GHC bug in 9.2.1, fixed in 9.2.2
+deriving stock instance (forall a. Ord a => Eq (f a)) => Eq (Type f)
+
+deriving stock instance (forall a. Ord a => Ord (f a)) => Ord (Type f)
 
 data Declaration (f :: HS.Type -> HS.Type)
   = TypeSig (f Name) (f ()) (Type f)
@@ -143,10 +150,21 @@ instance Eq a => Eq (Located a) where
 instance Ord a => Ord (Located a) where
   compare x y = compare x.val y.val
 
-{-# ANN mergeLocations ("HLint: ignore Redundant lambda" :: String) #-}
-{-# INLINE mergeLocations #-}
-mergeLocations :: (Located a -> Located b -> c) -> Located a -> Located b -> Located c
-mergeLocations f = \x y -> Located (x.loc <> y.loc) (f x y)
+type (~>) f g = forall a. f a -> g a
 
-locationAp :: (Located a -> Located b -> c) -> Located a -> Located b -> Located c
-locationAp f x y = Located (x.loc <> y.loc) (f x y)
+mapType :: (forall a. Ord a => Ord (g a)) => f ~> g -> Type f -> Type g
+mapType f = \case
+  TVar n -> TVar (f n)
+  TCon n -> TVar (f n)
+  TApp x y -> TApp (mapType f x) (mapType f y)
+  TFun x arrow y -> TFun (mapType f x) (f arrow) (mapType f y)
+  TArray lb x rb -> TArray (f lb) (mapType f x) (f rb)
+  TList lb x rb -> TList (f lb) (mapType f x) (f rb)
+  TMap lb k comma v rb -> TMap (f lb) (mapType f k) (f comma) (mapType f v) (f rb)
+  TRow lb xs commas rb -> TRow (f lb) (go xs) (f <$> commas) (f rb)
+  TRecord lb xs commas rb -> TRecord (f lb) (go xs) (f <$> commas) (f rb)
+  TVariant lb xs commas rb -> TVariant (f lb) (go xs) (f <$> commas) (f rb)
+  TForall fa params dot x -> TForall (f fa) (f <$> params) (f dot) (mapType f x)
+  TExists te params dot x -> TExists (f te) (f <$> params) (f dot) (mapType f x)
+  where
+    go = Map.mapKeys f . fmap \(x, y, z) -> (f x, f y, mapType f z)

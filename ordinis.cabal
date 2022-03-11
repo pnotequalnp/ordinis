@@ -10,7 +10,10 @@ copyright:     Kevin Mullins 2022
 
 common base
   default-language:   Haskell2010
-  ghc-options:        -Wall -Werror=incomplete-patterns -fno-show-valid-hole-fits
+  ghc-options:
+    -Wall -Werror=incomplete-patterns -fno-show-valid-hole-fits
+    -Wno-unticked-promoted-constructors
+
   default-extensions:
     BlockArguments
     DataKinds
@@ -20,23 +23,25 @@ common base
     FlexibleContexts
     FlexibleInstances
     ImportQualifiedPost
+    ImpredicativeTypes
     LambdaCase
     NamedFieldPuns
-    NoFieldSelectors
     NoStarIsType
-    OverloadedRecordDot
     OverloadedStrings
+    PostfixOperators
     QuantifiedConstraints
-    RankNTypes
+    ScopedTypeVariables
     StandaloneDeriving
     TupleSections
     TypeApplications
     TypeFamilies
     TypeOperators
     ViewPatterns
+    NoFieldSelectors
+    OverloadedRecordDot
 
   build-depends:
-    , base ^>=4.16.0.0
+    , base        ^>=4.16.0.0
     , bytestring
     , effectful
     , text
@@ -49,6 +54,8 @@ library
     Language.Ordinis.Lexer
     Language.Ordinis.Parser
     Language.Ordinis.Syntax
+    Language.Ordinis.Typechecker
+    Language.Ordinis.Typechecker.Fresh
 
   build-depends:
     , array
