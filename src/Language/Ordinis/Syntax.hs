@@ -8,103 +8,104 @@ import Data.Text (Text)
 import Data.Text qualified as T
 
 data Token
-  = TEOF
-  | TNewLine
-  | TParenOpen
-  | TParenClose
-  | TSquareBracketOpen
-  | TSquareBracketClose
-  | TAngleBracketOpen
-  | TAngleBracketClose
-  | TBraceOpen
-  | TBraceClose
-  | TLet
-  | TIn
-  | TWhere
-  | TEquals
-  | TTypeAnnotation
-  | TForall
-  | TExists
-  | TComma
-  | TDot
-  | TArrow
-  | TType
-  | TIdentifier {id :: {-# UNPACK #-} !Text}
-  | TOperator {op :: {-# UNPACK #-} !Text}
-  | TIntegral {int :: !Integer}
-  | TFractional {frac :: {-# UNPACK #-} !Rational}
-  | TString {string :: {-# UNPACK #-} !Text}
+  = TkEOF
+  | TkNewLine
+  | TkParenOpen
+  | TkParenClose
+  | TkSquareBracketOpen
+  | TkSquareBracketClose
+  | TkAngleBracketOpen
+  | TkAngleBracketClose
+  | TkBraceOpen
+  | TkBraceClose
+  | TkLet
+  | TkIn
+  | TkWhere
+  | TkEquals
+  | TkTypeAnnotation
+  | TkForall
+  | TkExists
+  | TkComma
+  | TkDot
+  | TkArrow
+  | TkType
+  | TkIdentifier {id :: {-# UNPACK #-} !Text}
+  | TkOperator {op :: {-# UNPACK #-} !Text}
+  | TkIntegral {int :: !Integer}
+  | TkFractional {frac :: {-# UNPACK #-} !Rational}
+  | TkString {string :: {-# UNPACK #-} !Text}
   deriving stock (Show)
 
 renderToken :: Token -> Text
 renderToken = \case
-  TEOF -> "<EOF>"
-  TNewLine -> "\\n"
-  TParenOpen -> "("
-  TParenClose -> ")"
-  TSquareBracketOpen -> "["
-  TSquareBracketClose -> "]"
-  TAngleBracketOpen -> "〈"
-  TAngleBracketClose -> "〉"
-  TBraceOpen -> "{"
-  TBraceClose -> "}"
-  TLet -> "let"
-  TIn -> "in"
-  TWhere -> "where"
-  TEquals -> "="
-  TTypeAnnotation -> ":"
-  TForall -> "∀"
-  TExists -> "∃"
-  TComma -> ","
-  TDot -> "."
-  TArrow -> "->"
-  TType -> "type"
-  TIdentifier x -> x
-  TOperator x -> x
-  TIntegral x -> (T.pack . show) x
-  TFractional x -> (T.pack . show . fromRational @Double) x
-  TString x -> "\"" <> x <> "\""
+  TkEOF -> "<EOF>"
+  TkNewLine -> "\\n"
+  TkParenOpen -> "("
+  TkParenClose -> ")"
+  TkSquareBracketOpen -> "["
+  TkSquareBracketClose -> "]"
+  TkAngleBracketOpen -> "〈"
+  TkAngleBracketClose -> "〉"
+  TkBraceOpen -> "{"
+  TkBraceClose -> "}"
+  TkLet -> "let"
+  TkIn -> "in"
+  TkWhere -> "where"
+  TkEquals -> "="
+  TkTypeAnnotation -> ":"
+  TkForall -> "∀"
+  TkExists -> "∃"
+  TkComma -> ","
+  TkDot -> "."
+  TkArrow -> "->"
+  TkType -> "type"
+  TkIdentifier x -> x
+  TkOperator x -> x
+  TkIntegral x -> (T.pack . show) x
+  TkFractional x -> (T.pack . show . fromRational @Double) x
+  TkString x -> "\"" <> x <> "\""
 
 type Name = Text
 
-data Literal (f :: HS.Type -> HS.Type)
+data Literal
   = LString Text
   | LIntegral Integer
   | LFractional Rational
-  | LSequence [f (Expression f)]
-  | LRecord (Map (f Name) (f (Expression f)))
-  | LVariant (f Name) (f (Expression f))
-
-deriving stock instance (Show (f Name), Show (f (Expression f))) => Show (Literal f)
+  deriving stock (Show)
 
 data Expression (f :: HS.Type -> HS.Type)
-  = EVar Name
-  | EApp (f (Expression f)) (f (Expression f))
-  | ELam (f Name) (f (Expression f))
-  | ELet (f Name) (f (Expression f)) (f (Expression f))
-  | ELit (Literal f)
+  = EVar (f Name)
+  | EApp (Expression f) (Expression f)
+  | ELam (f Name) (f ()) (Expression f)
+  | ELet (f ()) (f Name) (f ()) (Expression f) (f ()) (Expression f)
+  | ELit (f Literal)
+  | Sequence (f ()) [Expression f] [f ()] (f ())
+  | Record (f ()) (Map (f Name) (f Name, f (), Expression f)) [f ()] (f ())
+  | Variant (f ()) (f Name) (f ()) (Expression f) (f ())
 
-deriving stock instance (Show (f Name), Show (f (Expression f))) => Show (Expression f)
+deriving stock instance (forall a. Show a => Show (f a)) => Show (Expression f)
 
 data Type (f :: HS.Type -> HS.Type)
-  = TVar Name
-  | TCon Name
-  | TApp (f (Type f)) (f (Type f))
-  | TFun (f (Type f)) (f (Type f))
-  | TRow (Map (f Name) (f (Type f)))
-  | TRecord (Map (f Name) (f (Type f)))
-  | TVariant (Map (f Name) (f (Type f)))
+  = TVar (f Name)
+  | TCon (f Name)
+  | TApp (Type f) (Type f)
+  | TFun (Type f) (f ()) (Type f)
+  | TRow (f ()) (Map (f Name) (f Name, f (), Type f)) [f ()] (f ())
+  | TRecord (f ()) (Map (f Name) (f Name, f (), Type f)) [f ()] (f ())
+  | TVariant (f ()) (Map (f Name) (f Name, f (), Type f)) [f ()] (f ())
+  | TForall (f ()) [f Name] (f ()) (Type f)
+  | TExists (f ()) [f Name] (f ()) (Type f)
 
-deriving stock instance (Show (f Name), Show (f (Type f))) => Show (Type f)
+deriving stock instance (forall a. Show a => Show (f a)) => Show (Type f)
 
 data Declaration (f :: HS.Type -> HS.Type)
-  = TypeSig (f Name) (f (Type f))
-  | Equation (f Name) [f Name] (f (Expression f))
-  | TypeSyn (f Name) [f Name] (f (Type f))
+  = TypeSig (f Name) (f ()) (Type f)
+  | Equation (f Name) [f Name] (f ()) (Expression f)
+  | TypeSyn (f ()) (f Name) [f Name] (f ()) (Type f)
 
-deriving stock instance (Show (f Name), Show (f (Expression f)), Show (f (Type f))) => Show (Declaration f)
+deriving stock instance (forall a. Show a => Show (f a)) => Show (Declaration f)
 
-type Module f = [f (Declaration f)]
+type Module f = [Declaration f]
 
 data Loc = Loc
   { startLine :: {-# UNPACK #-} !Word,

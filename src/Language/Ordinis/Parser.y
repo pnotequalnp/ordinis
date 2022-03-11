@@ -17,33 +17,33 @@ import Language.Ordinis.Syntax
 %name parse
 %tokentype { Located Token }
 %monad { '[Error ParseError, Error LexError, State LexState] :>> es } { Eff es }
-%lexer { lexCont } { Located _ TEOF }
+%lexer { lexCont } { Located _ TkEOF }
 %error { (throwError . UnexpectedToken) }
 
 %token
-      let             { Located $$ TLet }
-      in              { Located $$ TIn }
-      ':'             { Located $$ TTypeAnnotation }
-      '='             { Located $$ TEquals }
-      '\n'            { Located $$ TNewLine }
-      '('             { Located $$ TParenOpen }
-      ')'             { Located $$ TParenClose }
-      '['             { Located $$ TSquareBracketOpen }
-      ']'             { Located $$ TSquareBracketClose }
-      '〈'             { Located $$ TAngleBracketOpen }
-      '〉'             { Located $$ TAngleBracketClose }
-      '{'             { Located $$ TBraceOpen }
-      '}'             { Located $$ TBraceClose }
-      ','             { Located $$ TComma }
-      '.'             { Located $$ TDot }
-      '->'            { Located $$ TArrow }
-      '∀'             { Located $$ TForall }
-      '∃'             { Located $$ TExists }
-      type            { Located $$ TType }
-      id              { Located _ (TIdentifier _) }
-      int             { Located _ (TIntegral _) }
-      float           { Located _ (TFractional _) }
-      str             { Located _ (TString _) }
+      let             { Located $$ TkLet }
+      in              { Located $$ TkIn }
+      ':'             { Located $$ TkTypeAnnotation }
+      '='             { Located $$ TkEquals }
+      '\n'            { Located $$ TkNewLine }
+      '('             { Located $$ TkParenOpen }
+      ')'             { Located $$ TkParenClose }
+      '['             { Located $$ TkSquareBracketOpen }
+      ']'             { Located $$ TkSquareBracketClose }
+      '〈'             { Located $$ TkAngleBracketOpen }
+      '〉'             { Located $$ TkAngleBracketClose }
+      '{'             { Located $$ TkBraceOpen }
+      '}'             { Located $$ TkBraceClose }
+      ','             { Located $$ TkComma }
+      '.'             { Located $$ TkDot }
+      '->'            { Located $$ TkArrow }
+      '∀'             { Located $$ TkForall }
+      '∃'             { Located $$ TkExists }
+      type            { Located $$ TkType }
+      id              { Located _ (TkIdentifier _) }
+      int             { Located _ (TkIntegral _) }
+      float           { Located _ (TkFractional _) }
+      string          { Located _ (TkString _) }
 
 %%
 
@@ -57,94 +57,72 @@ Module :: { Module Located }
   : Decl                        { [$1] }
   | Module '\n' Decl            { $3 : $1 }
 
-Decl :: { Located (Declaration Located) }
-  : id ':' Type                 { loc [$1.loc, $2, $3.loc] (TypeSig ((.id) `fmap` $1) $3) }
-  | id Params '=' Expr          { loc ([$1.loc, $3, $4.loc] <> (.loc) `fmap` $2)
-                                    (Equation ((.id) `fmap` $1) $2 $4) }
-  | type id Params '=' Type     { loc ([$1, $2.loc, $4, $5.loc] <> (.loc) `fmap` $3)
-                                    (TypeSyn ((.id) `fmap` $2) $3 $5) }
+Decl :: { Declaration Located }
+  : id ':' Type                 { TypeSig (getId $1) (loc $2) $3 }
+  | id Params '=' Expr          { Equation (getId $1) $2 (loc $3) $4 }
+  | type id Params '=' Type     { TypeSyn (loc $1) (getId $2) $3 (loc $4) $5 }
 
 Params :: { [Located Name] }
   : {- Empty -}                 { [] }
-  | id                          { [(.id) `fmap` $1] }
-  | Params id                   { (.id) `fmap` $2 : $1 }
+  | id                          { [getId $1] }
+  | Params id                   { getId $2 : $1 }
 
-Type :: { Located (Type Located) }
+Type :: { Type Located }
   : TForm                       { $1 }
-  | Type '->' Type              { loc [$1.loc, $2, $3.loc] (TFun $1 $3) }
-  | '∀' Params '.' Type         { error "forall" }
-  | '∃' Params '.' Type         { error "exists" }
+  | Type '->' Type              { TFun $1 (loc $2) $3 }
+  | '∀' Params '.' Type         { TForall (loc $1) $2 (loc $3) $4 }
+  | '∃' Params '.' Type         { TExists (loc $1) $2 (loc $3) $4 }
 
-TForm :: { Located (Type Located) }
+TForm :: { Type Located }
   : TFact                       { $1 }
 
-TFact :: { Located (Type Located) }
-  : TFact TAtom                 { loc [$1.loc, $2.loc] (TApp $1 $2) }
+TFact :: { Type Located }
+  : TFact TAtom                 { TApp $1 $2 }
   | TAtom                       { $1 }
 
-TAtom :: { Located (Type Located) }
-  : id                          { (TVar . (.id)) `fmap` $1 }
-  | Row                         { $1 }
-  | TRecord                     { $1 }
-  | TVariant                    { $1 }
+TAtom :: { Type Located }
+  : id                          { TVar (getId $1) }
+  | '(' TAssoc ')'              { TRow (loc $1) (fst $2) (snd $2) (loc $3) }
+  | '{' TAssoc '}'              { TRecord (loc $1) (fst $2) (snd $2) (loc $3) }
+  | '〈' TAssoc '〉'              { TVariant (loc $1) (fst $2) (snd $2) (loc $3) }
 
-Row :: { Located (Type Located) }
-  : '(' ')'                     { error "empty row" }
-  | '(' TAssoc ')'              { error "row" }
+TAssoc :: { (Map (Located Name) (Located Name, Located (), Type Located), [Located ()]) }
+  : {- Empty -}                 { (Map.empty, []) }
+  | id ':' Type                 { let l = getId $1 in (Map.singleton l (l, loc $2, $3), []) }
+  | TAssoc ',' id ':' Type      {% let l = getId $3; (m, commas) = $1
+                                    in fmap (, loc $2 : commas) (insertAssoc m l (l, loc $4, $5)) }
 
-TRecord :: { Located (Type Located) }
-  : '{' '}'                     { error "empty record" }
-  | '{' TAssoc '}'              { error "record" }
-
-TVariant :: { Located (Type Located) }
-  : '〈' '〉'                     { error "empty variant" }
-  | '〈' TAssoc '〉'              { error "variant" }
-
-TAssoc :: { Located (Map (Located Name) (Located (Type Located))) }
-  : id ':' Type                 { loc [$1.loc, $2, $3.loc] (Map.singleton ((.id) `fmap` $1) $3) }
-  | TAssoc ',' id ':' Type      {% fmap (loc [$1.loc, $2, $3.loc, $4, $5.loc])
-                                     (insertMapUnique $1.val ((.id) `fmap` $3) $5) }
-
-Expr :: { Located (Expression Located) }
+Expr :: { Expression Located }
   : Form                        { $1 }
-  | let id '=' Expr in Expr     { loc [$1, $2.loc, $3, $4.loc, $5, $6.loc]
-                                    (ELet ((.id) `fmap` $2) $4 $6) }
+  | let id '=' Expr in Expr     { ELet (loc $1) (getId $2) (loc $3) $4 (loc $5) $6 }
 
-Form :: { Located (Expression Located) }
+Form :: { Expression Located }
   : Fact                        { $1 }
 
-Fact :: { Located (Expression Located) }
-  : Fact Atom                   { loc [$1.loc, $2.loc] (EApp $1 $2) }
+Fact :: { Expression Located }
+  : Fact Atom                   { EApp $1 $2 }
   | Atom                        { $1 }
 
-Atom :: { Located (Expression Located) }
+Atom :: { Expression Located }
   : '(' Expr ')'                { $2 }
-  | id                          { (EVar . (.id)) `fmap` $1 }
-  | Literal                     { ELit `fmap` $1 }
+  | id                          { EVar (getId $1) }
+  | Literal                     { ELit $1 }
+  | '{' Assoc '}'               { Record (loc $1) (fst $2) (snd $2) (loc $3) }
+  | '〈' Assoc '〉'               {% case Map.toList (fst $2) of
+                                     [] -> throwError (EmptyVariant ($1 <> $3))
+                                     [(_, (l, eq, x))] -> pure (Variant (loc $1) l eq x (loc $3))
+                                     _ -> throwError (MultipleVariant ($1 <> $3)) }
 
-Literal :: { Located (Literal Located) }
+Assoc :: { (Map (Located Name) (Located Name, Located (), Expression Located), [Located ()]) }
+  : {- Empty -}                 { (Map.empty, []) }
+  | id '=' Expr                 { let l = getId $1 in (Map.singleton l (l, loc $2, $3), []) }
+  | Assoc ',' id '=' Expr       {% let l = getId $3; (m, commas) = $1
+                                    in fmap (, loc $2 : commas) (insertAssoc m l (l, loc $4, $5)) }
+
+Literal :: { Located Literal }
   : int                         { (LIntegral . (.int)) `fmap` $1 }
   | float                       { (LFractional . (.frac)) `fmap` $1 }
-  | str                         { (LString . (.string)) `fmap` $1 }
-  | Record                      { $1 }
-  | Variant                     { $1 }
-
-Record :: { Located (Literal Located) }
-  : '{' '}'                     { loc [$1, $2] (LRecord Map.empty) }
-  | '{' Assoc '}'               { loc ([$1, $3] <> []) (LRecord $2.val) }
-
-Variant :: { Located (Literal Located) }
-  : '〈' '〉'                     {% throwError (EmptyVariant ($1 <> $2))}
-  | '〈' Assoc '〉'               {% let l = sconcat [$1, $2.loc, $3]
-                                    in case onlyMap $2.val of
-                                         EmptyMap -> throwError (EmptyVariant l) -- impossible
-                                         ManyMap -> throwError (MultipleVariant l)
-                                         OnlyMap k v -> pure (Located l (LVariant k v)) }
-
-Assoc :: { Located (Map (Located Name) (Located (Expression Located))) }
-  : id '=' Expr                 { loc [$1.loc, $2, $3.loc] (Map.singleton ((.id) `fmap` $1) $3) }
-  | Assoc ',' id '=' Expr       {% fmap (loc [$1.loc, $2, $3.loc, $4, $5.loc])
-                                     (insertMapUnique $1.val ((.id) `fmap` $3) $5) }
+  | string                      { (LString . (.string)) `fmap` $1 }
 
 {
 {-# ANN module "HLint: ignore" #-}
@@ -156,33 +134,18 @@ data ParseError
   | MultipleVariant Loc
   deriving stock (Show)
 
-sconcat :: Semigroup a => [a] -> a
-sconcat = \case
-  [] -> error "sconcat: empty list"
-  [x] -> x
-  x : xs -> x <> sconcat xs
+getId :: Located Token -> Located Name
+getId = fmap (.id)
 
-loc :: [Loc] -> a -> Located a
-loc ls x = Located (sconcat ls) x
+loc :: Loc -> Located ()
+loc l = Located l ()
 
-data MapResult k v
-  = EmptyMap
-  | OnlyMap k v
-  | ManyMap
-
-onlyMap :: Map k v -> MapResult k v
-onlyMap = Map.foldrWithKey go EmptyMap
-  where
-    go k v EmptyMap = OnlyMap k v
-    go _ _ (OnlyMap _ _) = ManyMap
-    go _ _ ManyMap = ManyMap
-
-insertMapUnique :: Error ParseError :> es
-                => Map (Located Name) (Located (f Located))
-                -> Located Name
-                -> Located (f Located)
-                -> Eff es (Map (Located Name) (Located (f Located)))
-insertMapUnique m l v = case Map.insertLookupWithKey (\_ _ -> id) l v m of
+insertAssoc :: Error ParseError :> es
+            => Map (Located Name) a
+            -> Located Name
+            -> a
+            -> Eff es (Map (Located Name) a)
+insertAssoc m l x = case Map.insertLookupWithKey (\_ _ -> id) l x m of
   (Just _, _) -> throwError (DuplicateLabel l)
   (Nothing, m') -> pure m'
 

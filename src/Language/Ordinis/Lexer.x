@@ -45,28 +45,28 @@ $whitespace = $white # $nl
 :-
   "--" .*               ;
   $whitespace+          ;
-  $nl+                  { lexeme . const TNewLine }
-  \(                    { lexeme . const TParenOpen }
-  \)                    { lexeme . const TParenClose }
-  \{                    { lexeme . const TBraceOpen }
-  \}                    { lexeme . const TBraceClose }
-  \〈                    { lexeme . const TAngleBracketOpen }
-  \〉                    { lexeme . const TAngleBracketClose }
-  \.                    { lexeme . const TDot }
-  \,                    { lexeme . const TComma }
-  "->"                  { lexeme . const TArrow }
-  :                     { lexeme . const TTypeAnnotation }
-  =                     { lexeme . const TEquals }
-  let                   { lexeme . const TLet }
-  in                    { lexeme . const TIn }
-  ∀                     { lexeme . const TForall }
-  ∃                     { lexeme . const TExists }
-  type                  { lexeme . const TType }
-  $digit+               { lexeme . TIntegral . readIntegralUnsafe }
-  \- $digit+            { lexeme . TIntegral . negate . readIntegralUnsafe . T.drop 1 }
-  $digit+ \. $digit*    { lexeme . TFractional . readFractionalUnsafe }
-  @identifier           { lexeme . TIdentifier }
-  \" (. # $nl)* \"      { lexeme . TString . T.dropEnd 1 . T.drop 1 }
+  $nl+                  { lexeme . const TkNewLine }
+  \(                    { lexeme . const TkParenOpen }
+  \)                    { lexeme . const TkParenClose }
+  \{                    { lexeme . const TkBraceOpen }
+  \}                    { lexeme . const TkBraceClose }
+  \〈                    { lexeme . const TkAngleBracketOpen }
+  \〉                    { lexeme . const TkAngleBracketClose }
+  \.                    { lexeme . const TkDot }
+  \,                    { lexeme . const TkComma }
+  "->"                  { lexeme . const TkArrow }
+  :                     { lexeme . const TkTypeAnnotation }
+  =                     { lexeme . const TkEquals }
+  let                   { lexeme . const TkLet }
+  in                    { lexeme . const TkIn }
+  ∀                     { lexeme . const TkForall }
+  ∃                     { lexeme . const TkExists }
+  type                  { lexeme . const TkType }
+  $digit+               { lexeme . TkIntegral . readIntegralUnsafe }
+  \- $digit+            { lexeme . TkIntegral . negate . readIntegralUnsafe . T.drop 1 }
+  $digit+ \. $digit*    { lexeme . TkFractional . readFractionalUnsafe }
+  @identifier           { lexeme . TkIdentifier }
+  \" (. # $nl)* \"      { lexeme . TkString . T.dropEnd 1 . T.drop 1 }
 
 {
 {-# ANN module "HLint: ignore" #-}
@@ -156,14 +156,14 @@ alexGetByte s@LexState {current = (c, []), remaining, prev, token, position, sta
 
 lexList :: '[State LexState, Error LexError] :>> es => Eff es [Located Token]
 lexList = lexCont \case
-  Located _ TEOF -> pure []
+  Located _ TkEOF -> pure []
   t -> (t :) <$> lexList
 
 lexCont :: '[State LexState, Error LexError] :>> es => (Located Token -> Eff es a) -> Eff es a
 lexCont f = do
   s <- get
   case alexScan s s.startCode of
-    AlexEOF -> f (Located (Loc 0 0 0 0) TEOF)
+    AlexEOF -> f (Located (Loc 0 0 0 0) TkEOF)
     AlexError LexState {position = LexPosition {line, column}} -> throwError LexError {line, column}
     AlexSkip s' _len -> do
       put (resetToken s')
