@@ -43,8 +43,10 @@ import Language.Ordinis.Syntax
       '->'            { Located $$ TkArrow }
       '∀'             { Located $$ TkForall }
       '∃'             { Located $$ TkExists }
+      ':='            { Located $$ TkAssign }
       type            { Located $$ TkType }
       id              { Located _ (TkIdentifier _) }
+      deref           { Located _ (TkDeref _) }
       int             { Located _ (TkIntegral _) }
       float           { Located _ (TkFractional _) }
       string          { Located _ (TkString _) }
@@ -113,6 +115,7 @@ Fact :: { Expression Located }
 
 Atom :: { Expression Located }
   : id                          { EVar (getId $1) }
+  | deref                       { EDeref (getId $1) }
   | Literal                     { ELit $1 }
   | '(' Expr ')'                { $2 }
   | '[' Exprs ']'               { EArray (loc $1) (fst $2) (snd $2) (loc $3) }

@@ -34,12 +34,14 @@ data Token
   | TkDot
   | TkArrow
   | TkType
+  | TkAssign
   | TkIdentifier {id :: {-# UNPACK #-} !Text}
+  | TkDeref {id :: {-# UNPACK #-} !Text}
   | TkOperator {op :: {-# UNPACK #-} !Text}
   | TkIntegral {int :: !Integer}
   | TkFractional {frac :: {-# UNPACK #-} !Rational}
   | TkString {string :: {-# UNPACK #-} !Text}
-  deriving stock (Show)
+  deriving stock (Show, Eq, Ord)
 
 renderToken :: Token -> Text
 renderToken = \case
@@ -68,7 +70,9 @@ renderToken = \case
   TkDot -> "."
   TkArrow -> "->"
   TkType -> "type"
+  TkAssign -> ":="
   TkIdentifier x -> x
+  TkDeref x -> "*" <> x
   TkOperator x -> x
   TkIntegral x -> (T.pack . show) x
   TkFractional x -> (T.pack . show . fromRational @Double) x
@@ -80,7 +84,7 @@ data Literal
   = LString Text
   | LIntegral Integer
   | LFractional Rational
-  deriving stock (Show)
+  deriving stock (Show, Eq, Ord)
 
 data Expression (f :: HS.Type -> HS.Type)
   = EVar (f Name)
@@ -93,8 +97,15 @@ data Expression (f :: HS.Type -> HS.Type)
   | EMap (f ()) (Map (f Name) (f Name, f (), Expression f)) [f ()] (f ())
   | ERecord (f ()) (Map (f Name) (f Name, f (), Expression f)) [f ()] (f ())
   | EVariant (f ()) (f Name) (f ()) (Expression f) (f ())
+  | EDeref (f Name)
 
 deriving stock instance (forall a. Show a => Show (f a)) => Show (Expression f)
+
+-- NOTE: This has an `Ord` constraint even though it seems like it should only need `Eq`
+-- This is a GHC bug in 9.2.1, fixed in 9.2.2
+deriving stock instance (forall a. Ord a => Eq (f a)) => Eq (Expression f)
+
+deriving stock instance (forall a. Ord a => Ord (f a)) => Ord (Expression f)
 
 data Type (f :: HS.Type -> HS.Type)
   = TVar (f Name)
@@ -112,8 +123,7 @@ data Type (f :: HS.Type -> HS.Type)
 
 deriving stock instance (forall a. Show a => Show (f a)) => Show (Type f)
 
--- NOTE: This has an `Ord` constraint even though it seems like it should only need `Eq`
--- This is a GHC bug in 9.2.1, fixed in 9.2.2
+-- NOTE: See note on `Eq (Expression f)` instance
 deriving stock instance (forall a. Ord a => Eq (f a)) => Eq (Type f)
 
 deriving stock instance (forall a. Ord a => Ord (f a)) => Ord (Type f)

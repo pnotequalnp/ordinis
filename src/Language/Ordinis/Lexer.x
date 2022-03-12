@@ -65,6 +65,7 @@ $whitespace = $white # $nl
   "->"                  { lexeme . const TkArrow }
   :                     { lexeme . const TkTypeAnnotation }
   =                     { lexeme . const TkEquals }
+  :=                    { lexeme . const TkAssign }
   let                   { lexeme . const TkLet }
   in                    { lexeme . const TkIn }
   ∀                     { lexeme . const TkForall }
@@ -74,6 +75,7 @@ $whitespace = $white # $nl
   \- $digit+            { lexeme . TkIntegral . negate . readIntegralUnsafe . T.drop 1 }
   $digit+ \. $digit*    { lexeme . TkFractional . readFractionalUnsafe }
   @identifier           { lexeme . TkIdentifier }
+  \* @identifier        { lexeme . TkDeref }
   \" (. # $nl)* \"      { lexeme . TkString . T.dropEnd 1 . T.drop 1 }
 
 {

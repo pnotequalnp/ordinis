@@ -22,13 +22,13 @@ common base
     DuplicateRecordFields
     FlexibleContexts
     FlexibleInstances
+    GeneralizedNewtypeDeriving
     ImportQualifiedPost
     ImpredicativeTypes
     LambdaCase
     NamedFieldPuns
     NoStarIsType
     OverloadedStrings
-    PostfixOperators
     QuantifiedConstraints
     ScopedTypeVariables
     StandaloneDeriving
@@ -55,7 +55,7 @@ library
     Language.Ordinis.Parser
     Language.Ordinis.Syntax
     Language.Ordinis.Typechecker
-    Language.Ordinis.Typechecker.Fresh
+    Language.Ordinis.Typechecker.Names
 
   build-depends:
     , array
