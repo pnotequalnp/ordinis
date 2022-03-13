@@ -33,6 +33,12 @@ unit_unboundVariable = testFailure source expectation
         ]
     expectation = UnboundVariable (Located (Loc 2 7 7) "x")
 
+unit_loneTypeSignature :: Assertion
+unit_loneTypeSignature = testFailure source expectation
+  where
+    source = "foo : Int64"
+    expectation = LoneTypeSignature (Located (Loc 1 1 3) "foo")
+
 unit_extraEquationParameters :: Assertion
 unit_extraEquationParameters = testFailure source expectation
   where
@@ -83,4 +89,5 @@ eqTypeErrors :: TypeError -> TypeError -> Assertion
 eqTypeErrors (ExtraParameters name) (ExtraParameters name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors (MismatchedParamCounts name) (MismatchedParamCounts name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors (UnboundVariable name) (UnboundVariable name') = LocatedEq name @?= LocatedEq name'
+eqTypeErrors (LoneTypeSignature name) (LoneTypeSignature name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors x y = assertFailure ("Type errors don't match:\nexpected: " <> show y <> "\nbut got: " <> show x)
