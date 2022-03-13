@@ -23,6 +23,22 @@ unit_monomorphicIdentityFunction = testSuccess source expectation
         ]
     expectation = ()
 
+unit_unboundVariable :: Assertion
+unit_unboundVariable = testFailure source expectation
+  where
+    source =
+      L.unlines
+        [ "foo : Int64",
+          "foo = bar"
+        ]
+    expectation = UnboundVariable (Located (Loc 2 7 9) "bar")
+
+unit_loneTypeSignature :: Assertion
+unit_loneTypeSignature = testFailure source expectation
+  where
+    source = "foo : Int64"
+    expectation = LoneTypeSignature (Located (Loc 1 1 3) "foo")
+
 unit_extraEquationParameters :: Assertion
 unit_extraEquationParameters = testFailure source expectation
   where
@@ -31,7 +47,7 @@ unit_extraEquationParameters = testFailure source expectation
         [ "foo : Int64",
           "foo x = x"
         ]
-    expectation = ExtraParameters (Located (Loc 2 2 1 3) "foo")
+    expectation = ExtraParameters (Located (Loc 2 1 3) "foo")
 
 unit_mismatchedEquationParamCounts :: Assertion
 unit_mismatchedEquationParamCounts = testFailure source expectation
@@ -42,7 +58,7 @@ unit_mismatchedEquationParamCounts = testFailure source expectation
           "foo x = x",
           "foo x y = x"
         ]
-    expectation = MismatchedParamCounts (Located (Loc 2 2 1 3) "foo")
+    expectation = MismatchedParamCounts (Located (Loc 2 1 3) "foo")
 
 typecheck :: L.Text -> IO (Either TypeError ())
 typecheck source = do
@@ -72,4 +88,6 @@ testFailure source expectation =
 eqTypeErrors :: TypeError -> TypeError -> Assertion
 eqTypeErrors (ExtraParameters name) (ExtraParameters name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors (MismatchedParamCounts name) (MismatchedParamCounts name') = LocatedEq name @?= LocatedEq name'
+eqTypeErrors (UnboundVariable name) (UnboundVariable name') = LocatedEq name @?= LocatedEq name'
+eqTypeErrors (LoneTypeSignature name) (LoneTypeSignature name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors x y = assertFailure ("Type errors don't match:\nexpected: " <> show y <> "\nbut got: " <> show x)

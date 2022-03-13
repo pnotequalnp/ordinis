@@ -112,7 +112,7 @@ parseError fp = \case
       (Just "Failed to parse source")
       ( singleLineError
           fp
-          t.loc.endLine
+          t.loc.line
           t.loc.startCol
           t.loc.endCol
           ("Unexpected token `" <> Ordinis.renderToken t.val <> "`")
@@ -121,17 +121,17 @@ parseError fp = \case
   DuplicateLabel l ->
     Errata.errataSimple
       (Just "Failed to parse source")
-      (singleLineError fp l.loc.endLine l.loc.startCol l.loc.endCol ("Duplicate label `" <> l.val <> "`"))
+      (singleLineError fp l.loc.line l.loc.startCol l.loc.endCol ("Duplicate label `" <> l.val <> "`"))
       Nothing
   EmptyVariant loc ->
     Errata.errataSimple
       (Just "Failed to parse source")
-      (singleLineError fp loc.endLine loc.startCol loc.endCol "Empty variant")
+      (singleLineError fp loc.line loc.startCol loc.endCol "Empty variant")
       Nothing
   MultipleVariant loc ->
     Errata.errataSimple
       (Just "Failed to parse source")
-      (singleLineError fp loc.endLine loc.startCol loc.endCol "Multiple definitions of variant")
+      (singleLineError fp loc.line loc.startCol loc.endCol "Multiple definitions of variant")
       Nothing
 
 typeError :: FilePath -> TypeError -> Errata
@@ -142,7 +142,7 @@ typeError fp = \case
       (Just "Type Error")
       ( singleLineError
           fp
-          n.loc.endLine
+          n.loc.line
           n.loc.startCol
           n.loc.endCol
           ("Type signature for `" <> n.val <> "` lacks any equation")
@@ -153,7 +153,7 @@ typeError fp = \case
       (Just "Type Error")
       ( singleLineError
           fp
-          n.loc.endLine
+          n.loc.line
           n.loc.startCol
           n.loc.endCol
           ("Equations for `" <> n.val <> "` have different numbers of parameters")
@@ -164,7 +164,7 @@ typeError fp = \case
       (Just "Type Error")
       ( singleLineError
           fp
-          n.loc.endLine
+          n.loc.line
           n.loc.startCol
           n.loc.endCol
           ("Equation for `" <> n.val <> "` has too many parameters for its type")
@@ -175,7 +175,7 @@ typeError fp = \case
       (Just "Type Error")
       ( singleLineError
           fp
-          n.loc.endLine
+          n.loc.line
           n.loc.startCol
           n.loc.endCol
           ("Duplicate definition of type synonym `" <> n.val <> "`")
@@ -186,7 +186,7 @@ typeError fp = \case
       (Just "Type Error")
       ( singleLineError
           fp
-          n.loc.endLine
+          n.loc.line
           n.loc.startCol
           n.loc.endCol
           ("Duplicate type signature for `" <> n.val <> "`")
@@ -197,7 +197,7 @@ typeError fp = \case
       (Just "Type Error")
       ( singleLineError
           fp
-          v.loc.endLine
+          v.loc.line
           v.loc.startCol
           v.loc.endCol
           ("Unbound variable `" <> v.val <> "`")

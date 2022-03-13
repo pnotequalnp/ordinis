@@ -1,5 +1,5 @@
-foo : Foo -> Bar
-foo x = y
+foo : Foo -> Foo
+foo x = x
 
-bar : Foo Bar -> Baz Quux
-bar y = z
+bar : Foo Bar -> Foo Bar
+bar α = α

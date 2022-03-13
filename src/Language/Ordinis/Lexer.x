@@ -3,7 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NoOverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-ambiguous-fields #-}
 
 module Language.Ordinis.Lexer
   ( LexError (..),
@@ -18,7 +18,6 @@ import Control.Applicative ((<|>))
 import Control.Monad (guard)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Char (ord)
-import Data.Functor ((<&>))
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.List.NonEmpty qualified as NE
 import Data.Ratio ((%))
@@ -43,7 +42,6 @@ $whitespace = $white # $nl
 @identifier = $alpha [$alpha $digit $subdigit \_ \']*
 
 :-
-  "--" .*               ;
   $whitespace+          ;
   $nl+                  { lexeme . const TkNewLine }
   \(                    { lexeme . const TkParenOpen }
@@ -79,19 +77,6 @@ $whitespace = $white # $nl
   \" (. # $nl)* \"      { lexeme . TkString . T.dropEnd 1 . T.drop 1 }
 
 {
-{-# ANN module "HLint: ignore" #-}
-
-lexeme :: State LexState :> es => Token -> Eff es (Located Token)
-lexeme t = do
-  LexPosition {line = startLine, column = startCol} <- getStart
-  LexPosition {line = endLine, column = endCol} <- gets @LexState (.position)
-  modify \s -> s {startPos = Nothing}
-  pure (Located Loc {startLine, startCol, endLine, endCol} t)
-  where
-    getStart = get @LexState <&> \s -> case s.startPos of
-      Nothing -> error ("Lexer matched 0-width lexeme. This is a bug.\n" <> show s)
-      Just x -> x
-
 readIntegralUnsafe :: Text -> Integer
 readIntegralUnsafe = T.foldl' add 0
   where
@@ -120,7 +105,7 @@ data LexState = LexState
     -- | The position in the source code
     position :: {-# UNPACK #-} !LexPosition,
     -- | The start position of the current lexeme
-    startPos :: !(Maybe LexPosition)
+    startPos :: {-# UNPACK #-} !Word
   }
   deriving stock (Show)
 
@@ -145,9 +130,17 @@ uncons' t = do
   let bytes = (NE.fromList . LBS.unpack . L.encodeUtf8) c
   pure (L.head c, bytes, t')
 
+lexeme :: State LexState :> es => Token -> Eff es (Located Token)
+lexeme t = do
+  startCol <- gets @LexState (.startPos)
+  LexPosition {line, column = endCol} <- gets @LexState (.position)
+  modify \s -> s {startPos = endCol + 1}
+  let token = (Located Loc {line, startCol, endCol} t)
+  pure token
+
 alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
 alexGetByte s@LexState {current = (c, x : xs)} = Just (x, s {current = (c, xs)})
-alexGetByte s@LexState {current = (c, []), remaining, prev, token, position, startPos} = do
+alexGetByte s@LexState {current = (c, []), remaining, token, position, startPos} = do
   (c', x :| xs, remaining') <- uncons' remaining
   let s' = s
         { current = (c', xs),
@@ -155,13 +148,17 @@ alexGetByte s@LexState {current = (c, []), remaining, prev, token, position, sta
           prev = c,
           token = ((`T.snoc` c') <$> token) <|> Just (T.singleton c'),
           position = position',
-          startPos = startPos <|> Just position'
+          startPos = startPos'
         }
       LexPosition {line, column} = position
+      startPos' = case c of
+        '\n' -> 1
+        ' ' -> 1 + startPos
+        _ -> startPos
       position' :: LexPosition
-      position' = case prev of
-        '\n' -> position { line = line + 1, column = 1 }
-        _ -> position { column = column + 1 }
+      position' = case c of
+        '\n' -> position {line = line + 1, column = 1}
+        _ -> position {column = column + 1}
   pure (x, s')
 
 lexList :: '[State LexState, Error LexError] :>> es => Eff es [Located Token]
@@ -173,7 +170,7 @@ lexCont :: '[State LexState, Error LexError] :>> es => (Located Token -> Eff es 
 lexCont f = do
   s <- get
   case alexScan s s.startCode of
-    AlexEOF -> f (Located (Loc 0 0 0 0) TkEOF)
+    AlexEOF -> f (Located (Loc 0 0 0) TkEOF)
     AlexError LexState {position = LexPosition {line, column}} -> throwError LexError {line, column}
     AlexSkip s' _len -> do
       put (resetToken s')
@@ -193,17 +190,13 @@ initialLexState :: L.Text -> LexState
 initialLexState source =
   LexState
     { remaining = source,
-      prev = '\n',
+      prev = '\0',
       token = Nothing,
-      current = ('\0', []),
+      current = ('\n', []),
       startCode = 0,
       position = LexPosition
         { line = 0,
           column = 1
         },
-      startPos = Just LexPosition
-        { line = 0,
-          column = 1
-        }
-    }
-}
+      startPos = 1
+    }}

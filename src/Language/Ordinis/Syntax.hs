@@ -138,15 +138,14 @@ deriving stock instance (forall a. Show a => Show (f a)) => Show (Declaration f)
 type Module f = [Declaration f]
 
 data Loc = Loc
-  { startLine :: {-# UNPACK #-} !Word,
-    endLine :: {-# UNPACK #-} !Word,
+  { line :: {-# UNPACK #-} !Word,
     startCol :: {-# UNPACK #-} !Word,
     endCol :: {-# UNPACK #-} !Word
   }
   deriving stock (Show, Eq, Ord)
 
 instance Semigroup Loc where
-  Loc {startCol, startLine} <> Loc {endCol, endLine} = Loc {startCol, endCol, startLine, endLine}
+  Loc {startCol} <> Loc {endCol, line} = Loc {startCol, endCol, line}
 
 data Located a = Located
   { loc :: {-# UNPACK #-} !Loc,
