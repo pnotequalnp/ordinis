@@ -29,9 +29,9 @@ unit_unboundVariable = testFailure source expectation
     source =
       L.unlines
         [ "foo : Int64",
-          "foo = x"
+          "foo = bar"
         ]
-    expectation = UnboundVariable (Located (Loc 2 7 7) "x")
+    expectation = UnboundVariable (Located (Loc 2 7 9) "bar")
 
 unit_loneTypeSignature :: Assertion
 unit_loneTypeSignature = testFailure source expectation
