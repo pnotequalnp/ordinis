@@ -31,13 +31,13 @@ unit_unboundVariable = testFailure source expectation
         [ "foo : Int64",
           "foo = bar"
         ]
-    expectation = UnboundVariable (Located (Loc 2 7 9) "bar")
+    expectation = UnboundVariable (Located (Loc 2 7 10) "bar")
 
 unit_loneTypeSignature :: Assertion
 unit_loneTypeSignature = testFailure source expectation
   where
     source = "foo : Int64"
-    expectation = LoneTypeSignature (Located (Loc 1 1 3) "foo")
+    expectation = LoneTypeSignature (Located (Loc 1 1 4) "foo")
 
 unit_extraEquationParameters :: Assertion
 unit_extraEquationParameters = testFailure source expectation
@@ -47,7 +47,7 @@ unit_extraEquationParameters = testFailure source expectation
         [ "foo : Int64",
           "foo x = x"
         ]
-    expectation = ExtraParameters (Located (Loc 2 1 3) "foo")
+    expectation = ExtraParameters (Located (Loc 2 1 4) "foo")
 
 unit_mismatchedEquationParamCounts :: Assertion
 unit_mismatchedEquationParamCounts = testFailure source expectation
@@ -58,7 +58,7 @@ unit_mismatchedEquationParamCounts = testFailure source expectation
           "foo x = x",
           "foo x y = x"
         ]
-    expectation = MismatchedParamCounts (Located (Loc 2 1 3) "foo")
+    expectation = MismatchedParamCounts (Located (Loc 2 1 4) "foo")
 
 typecheck :: L.Text -> IO (Either TypeError ())
 typecheck source = do

@@ -135,7 +135,7 @@ lexeme t = do
   startCol <- gets @LexState (.startPos)
   LexPosition {line, column = endCol} <- gets @LexState (.position)
   modify \s -> s {startPos = endCol + 1}
-  let token = (Located Loc {line, startCol, endCol} t)
+  let token = (Located Loc {line, startCol, endCol = endCol + 1} t)
   pure token
 
 alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
