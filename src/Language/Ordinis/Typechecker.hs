@@ -157,7 +157,7 @@ groupEquations sigs eqs = do
           let paramType paramName = TVar . SourceLocated (InferredParameter paramName)
               paramTypes ps = zipWith paramType ps paramTypeNames
               sym' = SourceLocated (ImplicitTopLevel name) ()
-              defType = foldr (\t -> TFun t sym') bodyType
+              defType = foldr (`TFun` sym') bodyType
           pure (defType . paramTypes, paramTypes, bodyType)
         Just defType -> do
           (paramTypes, bodyType) <- explicitParamTypes name (length params) defType

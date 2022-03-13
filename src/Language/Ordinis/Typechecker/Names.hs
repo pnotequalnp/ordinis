@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Language.Ordinis.Typechecker.Names
   ( Names,
     newName,
