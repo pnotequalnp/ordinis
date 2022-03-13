@@ -69,23 +69,24 @@ library
     , happy:happy
 
 executable ordinis
-  import:           base
-  hs-source-dirs:   app/ordinis
-  main-is:          Main.hs
-  other-modules:    Paths_ordinis
-  ghc-options:      -Wall
+  import:         base
+  hs-source-dirs: app/ordinis
+  main-is:        Main.hs
+  other-modules:
+    Paths_ordinis
   build-depends:
     , errata
     , optparse-applicative
     , ordinis
 
-test-suite library
-  import: base
+test-suite library-test
+  import:         base
   hs-source-dirs: test/library
-  type: exitcode-stdio-1.0
-  main-is: Main.hs
+  type:           exitcode-stdio-1.0
+  main-is:        Main.hs
   other-modules:
     Typechecking
+
   build-depends:
     , ordinis
     , tasty
