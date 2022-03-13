@@ -3,7 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NoOverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -Wno-unused-imports -Wno-ambiguous-fields #-}
+{-# OPTIONS_GHC -Wno-ambiguous-fields #-}
 
 module Language.Ordinis.Lexer
   ( LexError (..),
@@ -18,7 +18,6 @@ import Control.Applicative ((<|>))
 import Control.Monad (guard)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Char (ord)
-import Data.Functor ((<&>))
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.List.NonEmpty qualified as NE
 import Data.Ratio ((%))
@@ -78,13 +77,6 @@ $whitespace = $white # $nl
   \" (. # $nl)* \"      { lexeme . TkString . T.dropEnd 1 . T.drop 1 }
 
 {
-lexeme :: State LexState :> es => Token -> Eff es (Located Token)
-lexeme t = do
-  startCol <- gets @LexState (.startPos)
-  LexPosition {line, column = endCol} <- gets @LexState (.position)
-  modify \s -> s {startPos = endCol}
-  pure (Located Loc {line, startCol, endCol} t)
-
 readIntegralUnsafe :: Text -> Integer
 readIntegralUnsafe = T.foldl' add 0
   where
@@ -138,9 +130,17 @@ uncons' t = do
   let bytes = (NE.fromList . LBS.unpack . L.encodeUtf8) c
   pure (L.head c, bytes, t')
 
+lexeme :: State LexState :> es => Token -> Eff es (Located Token)
+lexeme t = do
+  startCol <- gets @LexState (.startPos)
+  LexPosition {line, column = endCol} <- gets @LexState (.position)
+  modify \s -> s {startPos = endCol + 1}
+  let token = (Located Loc {line, startCol, endCol} t)
+  pure token
+
 alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
 alexGetByte s@LexState {current = (c, x : xs)} = Just (x, s {current = (c, xs)})
-alexGetByte s@LexState {current = (c, []), remaining, prev, token, position, startPos} = do
+alexGetByte s@LexState {current = (c, []), remaining, token, position, startPos} = do
   (c', x :| xs, remaining') <- uncons' remaining
   let s' = s
         { current = (c', xs),
@@ -151,12 +151,12 @@ alexGetByte s@LexState {current = (c, []), remaining, prev, token, position, sta
           startPos = startPos'
         }
       LexPosition {line, column} = position
-      startPos' = case prev of
+      startPos' = case c of
         '\n' -> 1
         ' ' -> 1 + startPos
         _ -> startPos
       position' :: LexPosition
-      position' = case prev of
+      position' = case c of
         '\n' -> position {line = line + 1, column = 1}
         _ -> position {column = column + 1}
   pure (x, s')
