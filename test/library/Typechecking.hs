@@ -23,6 +23,26 @@ unit_monomorphicIdentityFunction = testSuccess source expectation
         ]
     expectation = ()
 
+unit_polymorphicIdentityFunction :: Assertion
+unit_polymorphicIdentityFunction = testSuccess source expectation
+  where
+    source =
+      L.unlines
+        [ "id : ∀a. a -> a",
+          "id x = x"
+        ]
+    expectation = ()
+
+unit_unboundTypeVariable :: Assertion
+unit_unboundTypeVariable = testFailure source expectation
+  where
+    source =
+      L.unlines
+        [ "id : a -> a",
+          "id x = x"
+        ]
+    expectation = UnboundTypeVariable (Located (Loc 1 6 7) "a")
+
 unit_unboundVariable :: Assertion
 unit_unboundVariable = testFailure source expectation
   where
@@ -82,7 +102,7 @@ testSuccess source expectation = do
 testFailure :: L.Text -> TypeError -> Assertion
 testFailure source expectation =
   typecheck source >>= \case
-    Right _ -> assertFailure "Typechecking succeeded"
+    Right _ -> assertFailure "Typechecking succeeded when failure expected"
     Left err -> eqTypeErrors err expectation
 
 eqTypeErrors :: TypeError -> TypeError -> Assertion
@@ -90,4 +110,5 @@ eqTypeErrors (ExtraParameters name) (ExtraParameters name') = LocatedEq name @?=
 eqTypeErrors (MismatchedParamCounts name) (MismatchedParamCounts name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors (UnboundVariable name) (UnboundVariable name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors (LoneTypeSignature name) (LoneTypeSignature name') = LocatedEq name @?= LocatedEq name'
+eqTypeErrors (UnboundTypeVariable name) (UnboundTypeVariable name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors x y = assertFailure ("Type errors don't match:\nexpected: " <> show y <> "\nbut got: " <> show x)
