@@ -79,18 +79,12 @@ $whitespace = $white # $nl
   \" (. # $nl)* \"      { lexeme . TkString . T.dropEnd 1 . T.drop 1 }
 
 {
-{-# ANN module "HLint: ignore" #-}
-
 lexeme :: State LexState :> es => Token -> Eff es (Located Token)
 lexeme t = do
-  LexPosition {line = startLine, column = startCol} <- getStart
-  LexPosition {line = endLine, column = endCol} <- gets @LexState (.position)
-  modify \s -> s {startPos = Nothing}
-  pure (Located Loc {startLine, startCol, endLine, endCol} t)
-  where
-    getStart = get @LexState <&> \s -> case s.startPos of
-      Nothing -> error ("Lexer matched 0-width lexeme. This is a bug.\n" <> show s)
-      Just x -> x
+  startCol <- gets @LexState (.startPos)
+  LexPosition {line, column = endCol} <- gets @LexState (.position)
+  modify \s -> s {startPos = endCol}
+  pure (Located Loc {line, startCol, endCol = endCol + 1} t)
 
 readIntegralUnsafe :: Text -> Integer
 readIntegralUnsafe = T.foldl' add 0
@@ -120,7 +114,7 @@ data LexState = LexState
     -- | The position in the source code
     position :: {-# UNPACK #-} !LexPosition,
     -- | The start position of the current lexeme
-    startPos :: !(Maybe LexPosition)
+    startPos :: {-# UNPACK #-} !Word
   }
   deriving stock (Show)
 
@@ -155,9 +149,14 @@ alexGetByte s@LexState {current = (c, []), remaining, prev, token, position, sta
           prev = c,
           token = ((`T.snoc` c') <$> token) <|> Just (T.singleton c'),
           position = position',
-          startPos = startPos <|> Just position'
+          startPos = startPos'
         }
       LexPosition {line, column} = position
+      startPos' :: Word
+      startPos' = case prev of
+        '\n' -> 1
+        ' ' -> 1 + startPos
+        _ -> startPos
       position' :: LexPosition
       position' = case prev of
         '\n' -> position { line = line + 1, column = 1 }
@@ -173,7 +172,7 @@ lexCont :: '[State LexState, Error LexError] :>> es => (Located Token -> Eff es 
 lexCont f = do
   s <- get
   case alexScan s s.startCode of
-    AlexEOF -> f (Located (Loc 0 0 0 0) TkEOF)
+    AlexEOF -> f (Located (Loc 0 0 0) TkEOF)
     AlexError LexState {position = LexPosition {line, column}} -> throwError LexError {line, column}
     AlexSkip s' _len -> do
       put (resetToken s')
@@ -201,9 +200,6 @@ initialLexState source =
         { line = 0,
           column = 1
         },
-      startPos = Just LexPosition
-        { line = 0,
-          column = 1
-        }
+      startPos = 1
     }
 }

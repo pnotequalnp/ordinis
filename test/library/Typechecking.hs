@@ -31,7 +31,7 @@ unit_extraEquationParameters = testFailure source expectation
         [ "foo : Int64",
           "foo x = x"
         ]
-    expectation = ExtraParameters (Located (Loc 2 2 1 3) "foo")
+    expectation = ExtraParameters (Located (Loc 2 1 3) "foo")
 
 unit_mismatchedEquationParamCounts :: Assertion
 unit_mismatchedEquationParamCounts = testFailure source expectation
@@ -42,7 +42,7 @@ unit_mismatchedEquationParamCounts = testFailure source expectation
           "foo x = x",
           "foo x y = x"
         ]
-    expectation = MismatchedParamCounts (Located (Loc 2 2 1 3) "foo")
+    expectation = MismatchedParamCounts (Located (Loc 2 1 3) "foo")
 
 typecheck :: L.Text -> IO (Either TypeError ())
 typecheck source = do
