@@ -3,7 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE NoOverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
+{-# OPTIONS_GHC -Wno-unused-imports -Wno-ambiguous-fields #-}
 
 module Language.Ordinis.Lexer
   ( LexError (..),
@@ -43,7 +43,6 @@ $whitespace = $white # $nl
 @identifier = $alpha [$alpha $digit $subdigit \_ \']*
 
 :-
-  "--" .*               ;
   $whitespace+          ;
   $nl+                  { lexeme . const TkNewLine }
   \(                    { lexeme . const TkParenOpen }
@@ -84,7 +83,7 @@ lexeme t = do
   startCol <- gets @LexState (.startPos)
   LexPosition {line, column = endCol} <- gets @LexState (.position)
   modify \s -> s {startPos = endCol}
-  pure (Located Loc {line, startCol, endCol = endCol + 1} t)
+  pure (Located Loc {line, startCol, endCol} t)
 
 readIntegralUnsafe :: Text -> Integer
 readIntegralUnsafe = T.foldl' add 0
@@ -152,15 +151,14 @@ alexGetByte s@LexState {current = (c, []), remaining, prev, token, position, sta
           startPos = startPos'
         }
       LexPosition {line, column} = position
-      startPos' :: Word
       startPos' = case prev of
         '\n' -> 1
         ' ' -> 1 + startPos
         _ -> startPos
       position' :: LexPosition
       position' = case prev of
-        '\n' -> position { line = line + 1, column = 1 }
-        _ -> position { column = column + 1 }
+        '\n' -> position {line = line + 1, column = 1}
+        _ -> position {column = column + 1}
   pure (x, s')
 
 lexList :: '[State LexState, Error LexError] :>> es => Eff es [Located Token]
@@ -192,14 +190,13 @@ initialLexState :: L.Text -> LexState
 initialLexState source =
   LexState
     { remaining = source,
-      prev = '\n',
+      prev = '\0',
       token = Nothing,
-      current = ('\0', []),
+      current = ('\n', []),
       startCode = 0,
       position = LexPosition
         { line = 0,
           column = 1
         },
       startPos = 1
-    }
-}
+    }}
