@@ -23,7 +23,7 @@
         errata = hs.callCabal2nix "errata" errata-src { hspec-golden = hs.hspec-golden_0_2_0_0; };
       in
       rec {
-        packages.ordinis = hs.callCabal2nix "ordinis" ./. { inherit effectful effectful-th errata; };
+        packages.ordinis = hs.callCabal2nix "ordinis" ./. { inherit effectful errata; };
         defaultPackage = packages.ordinis;
 
         apps.ordinis = flake-utils.lib.mkApp { drv = packages.ordinis; };

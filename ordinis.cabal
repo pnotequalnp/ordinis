@@ -29,7 +29,9 @@ common base
     LambdaCase
     MultiParamTypeClasses
     NamedFieldPuns
+    NoFieldSelectors
     NoStarIsType
+    OverloadedRecordDot
     OverloadedStrings
     QuantifiedConstraints
     ScopedTypeVariables
@@ -39,8 +41,6 @@ common base
     TypeFamilies
     TypeOperators
     ViewPatterns
-    NoFieldSelectors
-    OverloadedRecordDot
 
   build-depends:
     , base        ^>=4.16.0.0
@@ -63,8 +63,6 @@ library
     , array
     , comonad
     , containers
-    , data-default
-    , effectful-th
 
   build-tool-depends:
     , alex:alex
