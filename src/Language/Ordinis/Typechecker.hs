@@ -58,6 +58,7 @@ data TypeError
   | ExtraParameters (Located Name)
   | MismatchedParamCounts (Located Name)
   | LoneTypeSignature (Located Name)
+  deriving stock (Show, Eq)
 
 data Constraint
   = Type SourceLocated :=: Type SourceLocated

@@ -151,7 +151,7 @@ data ParseError
   | DuplicateLabel (Located Name)
   | EmptyVariant Loc
   | MultipleVariant Loc
-  deriving stock (Show)
+  deriving stock (Show, Eq)
 
 getId :: Located Token -> Located Name
 getId = fmap (.id)

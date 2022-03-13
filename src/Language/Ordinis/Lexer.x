@@ -134,7 +134,7 @@ data LexError = LexError
   { line :: {-# UNPACK #-} !Word,
     column :: {-# UNPACK #-} !Word
   }
-  deriving stock (Show)
+  deriving stock (Show, Eq)
 
 type AlexInput = LexState
 

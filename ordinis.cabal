@@ -84,6 +84,8 @@ test-suite library
   hs-source-dirs: test/library
   type: exitcode-stdio-1.0
   main-is: Main.hs
+  other-modules:
+    Typechecking
   build-depends:
     , ordinis
     , tasty

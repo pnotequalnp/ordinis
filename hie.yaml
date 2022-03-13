@@ -4,3 +4,5 @@ cradle:
       component: "lib:ordinis"
     - path: "./app/ordinis"
       component: "exe:ordinis"
+    - path: "./test/library"
+      component: "test:library"
