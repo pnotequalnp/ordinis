@@ -13,7 +13,7 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, effectful-src, errata-src }:
-    flake-utils.lib.eachSystem [ "x86_64-linux" "x86_64-darwin" ] (system:
+    flake-utils.lib.eachSystem [ "x86_64-linux" ] (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         hs = pkgs.haskell.packages.ghc921;

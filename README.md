@@ -1,3 +1,5 @@
+![Nix CI](https://github.com/pnotequalnp/ordinis/actions/workflows/nix.yml/badge.svg)
+
 # ordinis
 Ordinis, Latin for row. The idea is a simple ML-inspired pure FP language with heavy inspiration
 from Haskell and OCaml. It doesn't work at all yet and it's just a fun project, not intended for
