@@ -7,7 +7,8 @@ actual usage.
 
 ## Features
 * Lexer
-* Parser (somewhat)
+* Parser
+* Typechecker (kind of)
 
 ## Planned Features (subject to drastic change)
 * Extensive type inference
