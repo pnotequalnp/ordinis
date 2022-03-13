@@ -136,7 +136,40 @@ parseError fp = \case
 
 typeError :: FilePath -> TypeError -> Errata
 typeError fp = \case
-  UnificationError -> undefined
+  UnificationError x y -> error "main: unification error"
+  LoneTypeSignature n ->
+    Errata.errataSimple
+      (Just "Type Error")
+      ( singleLineError
+          fp
+          n.loc.endLine
+          n.loc.startCol
+          n.loc.endCol
+          ("Type signature for `" <> n.val <> "` lacks any equation")
+      )
+      Nothing
+  MismatchedParamCounts n ->
+    Errata.errataSimple
+      (Just "Type Error")
+      ( singleLineError
+          fp
+          n.loc.endLine
+          n.loc.startCol
+          n.loc.endCol
+          ("Equations for `" <> n.val <> "` have different numbers of parameters")
+      )
+      Nothing
+  ExtraParameters n ->
+    Errata.errataSimple
+      (Just "Type Error")
+      ( singleLineError
+          fp
+          n.loc.endLine
+          n.loc.startCol
+          n.loc.endCol
+          ("Equation for `" <> n.val <> "` has too many parameters for its type")
+      )
+      Nothing
   DuplicateTypeSynonym n ->
     Errata.errataSimple
       (Just "Type Error")

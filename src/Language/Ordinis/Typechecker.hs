@@ -2,8 +2,8 @@
 
 module Language.Ordinis.Typechecker where
 
+import Control.Comonad
 import Control.Monad
-import Data.Functor.Identity
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Map (Map, (\\))
 import Data.Map qualified as Map
@@ -17,16 +17,20 @@ import Language.Ordinis.Syntax
 import Language.Ordinis.Typechecker.Names
 
 data SourceLocated a = SourceLocated
-  { loc :: {-# UNPACK #-} !SourceLoc,
+  { loc :: SourceLoc,
     val :: a
   }
-  deriving stock (Show)
+  deriving stock (Show, Functor)
 
 instance Eq a => Eq (SourceLocated a) where
   x == y = x.val == y.val
 
 instance Ord a => Ord (SourceLocated a) where
   compare x y = compare x.val y.val
+
+instance Comonad SourceLocated where
+  extract = (.val)
+  duplicate x = SourceLocated x.loc x
 
 data SourceLoc
   = Explicit (Type Located)
@@ -63,14 +67,37 @@ type Constraints = Set Constraint
 
 type Env = Map Name (Type SourceLocated)
 
-newtype Substitution = Substitute (Map Name (Type Identity))
+newtype Substitution f = Substitute (Map Name (Type f))
   deriving newtype (Monoid)
 
-instance Semigroup Substitution where
+instance Comonad f => Semigroup (Substitution f) where
   s@(Substitute x) <> Substitute y = Substitute ((apply s <$> y) <> x)
 
-class Substitutable a where
-  apply :: Substitution -> a -> a
+class Substitutable f a | a -> f where
+  apply :: Substitution f -> a -> a
+
+instance Comonad f => Substitutable f (Type f) where
+  apply sub@(Substitute m) = \case
+    TVar name -> Map.findWithDefault (TVar name) (extract name) m
+    TCon name -> TCon name
+    TApp x y -> TApp (apply sub x) (apply sub y)
+    TFun f arrow x -> TFun (apply sub f) arrow (apply sub x)
+    TArray lb x rb -> TArray lb (apply sub x) rb
+    TList lb x rb -> TList lb (apply sub x) rb
+    TMap lb k comma v rb -> TMap lb (apply sub k) comma (apply sub v) rb
+    TRow lb xs commas rb -> TRow lb ((\(x, y, z) -> (x, y, apply sub z)) <$> xs) commas rb
+    TRecord lb xs commas rb -> TRecord lb ((\(x, y, z) -> (x, y, apply sub z)) <$> xs) commas rb
+    TVariant lb xs commas rb -> TVariant lb ((\(x, y, z) -> (x, y, apply sub z)) <$> xs) commas rb
+    TForall fa params dot x ->
+      let sub' = Substitute (foldr Map.delete m (extract <$> params))
+       in TForall fa params dot (apply sub' x)
+    TExists fa params dot x ->
+      let sub' = Substitute (foldr Map.delete m (extract <$> params))
+       in TExists fa params dot (apply sub' x)
+
+instance Substitutable SourceLocated Constraint where
+  apply sub = \case
+    x :=: y -> apply sub x :=: apply sub y
 
 type Equations = NonEmpty ([Located Name], Expression Located)
 
@@ -126,9 +153,10 @@ groupEquations sigs eqs = do
       (defType, paramTypes, bodyType) <- case Map.lookup name sigs of
         Nothing -> do
           bodyType <- TVar . SourceLocated (ImplicitTopLevel name) <$> newName
-          let paramType n = TVar . SourceLocated (InferredParameter n) <$> newName
-          paramTypes <- zipWith ($) <$> replicateM (length params) (sequenceA paramType)
-          let sym' = SourceLocated (ImplicitTopLevel name) ()
+          paramTypeNames <- replicateM (length params) newName
+          let paramType paramName = TVar . SourceLocated (InferredParameter paramName)
+              paramTypes ps = zipWith paramType ps paramTypeNames
+              sym' = SourceLocated (ImplicitTopLevel name) ()
               defType = foldr (\t -> TFun t sym') bodyType
           pure (defType . paramTypes, paramTypes, bodyType)
         Just defType -> do
@@ -205,7 +233,7 @@ inferExpr = \case
 
 {- CONSTRAINT SOLVING -}
 
-solve :: Error TypeError :> es => Substitution -> Constraints -> Eff es Substitution
+solve :: Error TypeError :> es => Substitution SourceLocated -> Constraints -> Eff es (Substitution SourceLocated)
 solve z = go z . Set.toList
   where
     go sub = \case
@@ -214,8 +242,9 @@ solve z = go z . Set.toList
         sub' <- unify x y
         go (sub' <> sub) (apply sub' <$> constraints)
 
-unify :: Error TypeError :> es => Type SourceLocated -> Type SourceLocated -> Eff es Substitution
-unify = _
+unify :: Error TypeError :> es => Type SourceLocated -> Type SourceLocated -> Eff es (Substitution SourceLocated)
+unify x y | x == y = pure mempty
+unify x y = throwError (UnificationError x y)
 
 {- LITERALS -}
 

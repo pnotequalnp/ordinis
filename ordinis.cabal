@@ -22,10 +22,12 @@ common base
     DuplicateRecordFields
     FlexibleContexts
     FlexibleInstances
+    FunctionalDependencies
     GeneralizedNewtypeDeriving
     ImportQualifiedPost
     ImpredicativeTypes
     LambdaCase
+    MultiParamTypeClasses
     NamedFieldPuns
     NoStarIsType
     OverloadedStrings
@@ -59,6 +61,7 @@ library
 
   build-depends:
     , array
+    , comonad
     , containers
     , data-default
     , effectful-th
