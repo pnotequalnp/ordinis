@@ -23,6 +23,16 @@ unit_monomorphicIdentityFunction = testSuccess source expectation
         ]
     expectation = ()
 
+unit_unboundVariable :: Assertion
+unit_unboundVariable = testFailure source expectation
+  where
+    source =
+      L.unlines
+        [ "foo : Int64",
+          "foo = x"
+        ]
+    expectation = UnboundVariable (Located (Loc 2 7 7) "x")
+
 unit_extraEquationParameters :: Assertion
 unit_extraEquationParameters = testFailure source expectation
   where
@@ -72,4 +82,5 @@ testFailure source expectation =
 eqTypeErrors :: TypeError -> TypeError -> Assertion
 eqTypeErrors (ExtraParameters name) (ExtraParameters name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors (MismatchedParamCounts name) (MismatchedParamCounts name') = LocatedEq name @?= LocatedEq name'
+eqTypeErrors (UnboundVariable name) (UnboundVariable name') = LocatedEq name @?= LocatedEq name'
 eqTypeErrors x y = assertFailure ("Type errors don't match:\nexpected: " <> show y <> "\nbut got: " <> show x)
