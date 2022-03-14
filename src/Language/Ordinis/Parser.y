@@ -4,8 +4,10 @@
 
 module Language.Ordinis.Parser where
 
+import Data.Char (isUpper)
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Text qualified as T
 import Data.Text.Lazy qualified as L
 import Effectful
 import Effectful.Error.Static
@@ -87,7 +89,10 @@ TFact :: { Type Located }
   | TAtom                       { $1 }
 
 TAtom :: { Type Located }
-  : id                          { TVar (getId $1) }
+  : id                          { let l = getId $1
+                                   in if isUpper (T.head l.val)
+                                        then TCon l
+                                        else TVar l }
   | '(' Type ')'                { $2 }
   | '[' Type ']'                { TArray (loc $1) $2 (loc $3) }
   | '[|' Type '|]'              { TList (loc $1) $2 (loc $3) }

@@ -58,6 +58,7 @@ data TypeError
   | ExtraParameters (Located Name)
   | MismatchedParamCounts (Located Name)
   | LoneTypeSignature (Located Name)
+  | UnboundTypeVariable (Located Name)
   deriving stock (Show, Eq)
 
 data Constraint
@@ -66,7 +67,20 @@ data Constraint
 
 type Constraints = Set Constraint
 
-type Env = Map Name (Type SourceLocated)
+data Env = Env
+  { terms :: Map Name (Type SourceLocated),
+    types :: Map Name (Type SourceLocated)
+  }
+
+instance Semigroup Env where
+  x <> y =
+    Env
+      { terms = x.terms <> y.terms,
+        types = x.types <> y.types
+      }
+
+instance Monoid Env where
+  mempty = Env mempty mempty
 
 newtype Substitution f = Substitute (Map Name (Type f))
   deriving newtype (Monoid)
@@ -109,7 +123,7 @@ runTypechecker decls = runNames sequentialNames do
   definitions <- groupEquations typeSigs equations
   (_, constraints) <-
     runWriter @Constraints
-      . runReader @Env Map.empty
+      . runReader @Env mempty
       $ traverse (uncurry4 inferDefinition) definitions
   _ <- solve mempty constraints
   pure ()
@@ -205,14 +219,18 @@ inferEquation defTypeF paramTypesF bodyType (params, body) = do
   where
     defType = defTypeF params
     paramTypes = paramTypesF params
-    paramEnv = Map.fromList (zip ((.val) <$> params) paramTypes)
+    paramEnv =
+      Env
+        { terms = Map.fromList (zip ((.val) <$> params) paramTypes),
+          types = mempty
+        }
 
 inferExpr ::
   '[Error TypeError, Reader Env, Writer Constraints, Names] :>> es =>
   Expression Located ->
   Eff es (Type SourceLocated)
 inferExpr = \case
-  EVar name -> asks (Map.lookup name.val) >>= note (UnboundVariable name)
+  EVar name -> asks @Env (Map.lookup name.val . (.terms)) >>= note (UnboundVariable name)
   fx@(EApp f x) -> do
     fType <- inferExpr f
     xType <- inferExpr x
