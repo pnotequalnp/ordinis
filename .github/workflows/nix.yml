@@ -37,4 +37,4 @@ jobs:
     - name: Update store cache
       run: |
         sudo rm -rf store-cache
-        nix copy --to file://${PWD}/store-cache\?compression=none .#ordinis.env
+        sudo nix copy --to file://${PWD}/store-cache\?compression=none .#ordinis.env
